@@ -1,5 +1,6 @@
 <resources>
     <color name="background">#090C14</color>
+    <color name="launcher_background">#03150D</color>
     <color name="surface">#121723</color>
     <color name="surface_high">#1A2030</color>
     <color name="surface_border">#2A3347</color>

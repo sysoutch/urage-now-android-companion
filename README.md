@@ -2,6 +2,10 @@
 
 The companion discovers exposed URage NOW dashboards on the local network, pairs from a one-scan camera QR or a one-time fallback code, and transfers generated or uploaded images, videos, audio, and 3D models.
 
+![URage Now Android Companion banner](assets/branding/urage-now-android-companion-banner.png)
+
+The repository-owned launcher icon source is [`assets/branding/urage-now-android-companion-icon.png`](assets/branding/urage-now-android-companion-icon.png). Android uses the matching adaptive icon resource on Android 10 and newer.
+
 ## Dashboard setup
 
 The easiest setup is now entirely in the dashboard:
