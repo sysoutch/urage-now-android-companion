@@ -1,0 +1,32 @@
+# Gradle and Android Studio state
+.gradle/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Local SDK and machine-specific configuration
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# Build products and native debug artefacts
+**/build/
+captures/
+externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.hprof
+
+# OS/editor debris
+.DS_Store
+Thumbs.db
+*.swp
+
+# Never commit generated local Matrix stores, logs, or test reports.
+matrix-state/
+logs/
+test-results/

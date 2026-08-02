@@ -1,0 +1,33 @@
+<resources>
+    <style name="Theme.URageCompanion" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorPrimaryVariant">@color/accent_strong</item>
+        <item name="colorOnPrimary">@color/background</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+    <style name="Theme.URageCompanion.Light" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#F8FAFC</item>
+        <item name="android:navigationBarColor">#F8FAFC</item>
+        <item name="android:colorAccent">#2E70AD</item>
+        <item name="colorPrimary">#2E70AD</item>
+        <item name="colorPrimaryVariant">#1F598D</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#2E70AD</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#172B40</item>
+        <item name="android:windowBackground">#F8FAFC</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

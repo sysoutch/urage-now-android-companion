@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="color-scheme" content="dark">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0b111b; }
+    body { color: #dce6f4; font: 12px system-ui, sans-serif; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #status {
+      position: absolute; left: 12px; bottom: 10px; max-width: calc(100% - 58px);
+      padding: 6px 9px; border: 1px solid #314156; border-radius: 8px;
+      background: rgba(8, 13, 22, .84); color: #b9c6d8; pointer-events: none;
+    }
+    #reset {
+      position: absolute; top: 9px; right: 9px; width: 38px; height: 38px;
+      border: 1px solid #526985; border-radius: 9px; background: rgba(15, 25, 39, .9);
+      color: #e7f0fb; font-size: 20px;
+    }
+  </style>
+  <script type="importmap">
+    {"imports":{"three":"/assets/three.module.min.js"}}
+  </script>
+</head>
+<body>
+  <div id="status">Preparing 3D preview…</div>
+  <button id="reset" type="button" aria-label="Reset camera">⌂</button>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from '/assets/loaders/GLTFLoader.js';
+    import { FBXLoader } from '/assets/loaders/FBXLoader.js';
+    import { OrbitControls } from '/assets/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b111b);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 10000);
+    camera.position.set(2.6, 1.8, 3.4);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    document.body.prepend(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = true;
+
+    scene.add(new THREE.HemisphereLight(0xdbeaff, 0x293344, 2.2));
+    const key = new THREE.DirectionalLight(0xffffff, 3.4);
+    key.position.set(4, 7, 5);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x70a9ff, 2.1);
+    rim.position.set(-5, 2, -4);
+    scene.add(rim);
+
+    const grid = new THREE.GridHelper(10, 20, 0x405b7c, 0x233247);
+    grid.material.opacity = 0.52;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const status = document.getElementById('status');
+    const loaders = { glb: new GLTFLoader(), fbx: new FBXLoader() };
+    let model = null;
+    let mixer = null;
+    let lastFraming = null;
+    let revision = 0;
+    const clock = new THREE.Clock();
+
+    function disposeModel() {
+      if (!model) return;
+      scene.remove(model);
+      model.traverse(child => {
+        child.geometry?.dispose?.();
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.filter(Boolean).forEach(material => {
+          Object.values(material).forEach(value => value?.isTexture && value.dispose());
+          material.dispose?.();
+        });
+      });
+      model = null;
+      mixer = null;
+    }
+
+    function frameModel(object) {
+      const box = new THREE.Box3().setFromObject(object);
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      if (!Number.isFinite(sphere.radius) || sphere.radius <= 0) throw new Error('The model has no visible geometry.');
+      object.position.sub(sphere.center);
+      const radius = Math.max(sphere.radius, 0.01);
+      const distance = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov * .5)) * 1.18;
+      camera.near = Math.max(radius / 100, .001);
+      camera.far = Math.max(radius * 100, 100);
+      camera.position.set(distance * .72, distance * .48, distance);
+      camera.updateProjectionMatrix();
+      controls.target.set(0, 0, 0);
+      controls.minDistance = radius * .2;
+      controls.maxDistance = radius * 12;
+      controls.update();
+      grid.position.y = box.min.y - sphere.center.y;
+      grid.scale.setScalar(Math.max(radius, .25));
+      lastFraming = {
+        position: camera.position.clone(),
+        target: controls.target.clone()
+      };
+    }
+
+    window.loadModel = format => {
+      const extension = format === 'fbx' ? 'fbx' : 'glb';
+      const loader = loaders[extension];
+      status.hidden = false;
+      status.textContent = 'Loading model…';
+      loader.load(`/model.${extension}?revision=${++revision}`, loaded => {
+        disposeModel();
+        model = extension === 'glb' ? loaded.scene : loaded;
+        scene.add(model);
+        frameModel(model);
+        const animations = loaded.animations || [];
+        if (animations.length) {
+          mixer = new THREE.AnimationMixer(model);
+          animations.forEach(clip => mixer.clipAction(clip).play());
+        }
+        status.textContent = 'Drag to orbit · pinch to zoom';
+        setTimeout(() => { status.hidden = true; }, 2200);
+      }, event => {
+        if (event.total > 0) {
+          status.textContent = `Loading model… ${Math.round(event.loaded / event.total * 100)}%`;
+        }
+      }, error => {
+        status.hidden = false;
+        status.textContent = `Preview unavailable: ${error?.message || 'unsupported model'}`;
+      });
+    };
+
+    window.showError = message => {
+      status.hidden = false;
+      status.textContent = message;
+    };
+
+    document.getElementById('reset').addEventListener('click', () => {
+      if (!lastFraming) return;
+      camera.position.copy(lastFraming.position);
+      controls.target.copy(lastFraming.target);
+      controls.update();
+    });
+
+    function resize() {
+      const width = Math.max(innerWidth, 1);
+      const height = Math.max(innerHeight, 1);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    renderer.setAnimationLoop(() => {
+      mixer?.update(clock.getDelta());
+      controls.update();
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>

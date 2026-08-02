@@ -1,0 +1,13 @@
+<resources>
+    <color name="background">#090C14</color>
+    <color name="surface">#121723</color>
+    <color name="surface_high">#1A2030</color>
+    <color name="surface_border">#2A3347</color>
+    <color name="accent">#A970FF</color>
+    <color name="accent_strong">#C39AFF</color>
+    <color name="accent_container">#30204A</color>
+    <color name="text">#F5F3FA</color>
+    <color name="text_muted">#A9B1C2</color>
+    <color name="success">#6EE7B7</color>
+    <color name="danger">#FF8A9A</color>
+</resources>
