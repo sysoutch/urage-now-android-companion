@@ -86,6 +86,19 @@ Release minification is intentionally disabled. The encrypted Matrix SDK include
 
 For a production organization, replace the locally generated key through the `ANDROID_RELEASE_KEYSTORE`, `ANDROID_RELEASE_STORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and `ANDROID_RELEASE_KEY_PASSWORD` environment variables and protect those values with the deployment secret store.
 
+## GitHub Releases
+
+Creating and pushing a version tag such as `v0.14.18` runs `.github/workflows/release.yml`. The workflow verifies that the tag exactly matches `VERSION_NAME`, builds signed ARM64, ARM32, x86_64, and universal APKs plus the App Bundle, writes `SHA256SUMS.txt`, and publishes all artifacts to the GitHub Release.
+
+Before the first release, configure these repository secrets in **Settings > Secrets and variables > Actions**:
+
+- `ANDROID_RELEASE_KEYSTORE_BASE64` — base64 encoding of the persistent release `.jks` file.
+- `ANDROID_RELEASE_STORE_PASSWORD`
+- `ANDROID_RELEASE_KEY_ALIAS`
+- `ANDROID_RELEASE_KEY_PASSWORD`
+
+Use the same persistent signing key used for existing installed releases. Generating a new key makes Android treat subsequent artifacts as a different app and prevents normal upgrades. You can also start the workflow manually for an existing tag; it applies the same exact version check.
+
 The client uses Android and Java platform APIs only. The paired-device token is encrypted with an Android Keystore AES-GCM key; it is not stored as plaintext preferences.
 
 ## Transfers
