@@ -4,6 +4,12 @@ The companion discovers exposed URage NOW dashboards on the local network, pairs
 
 ![URage Now Android Companion banner](assets/branding/urage-now-android-companion-banner.png)
 
+## App preview
+
+The companion starts with the Connection workspace, where a phone can discover a URage NOW dashboard on the local network or enter its LAN address to pair securely.
+
+![URage NOW Android Companion connection workspace](assets/screenshots/urage-now-android-companion-home.png)
+
 The repository-owned launcher icon source is [`assets/branding/urage-now-android-companion-icon.png`](assets/branding/urage-now-android-companion-icon.png). Android uses the matching adaptive icon resource on Android 10 and newer.
 
 ## Dashboard setup
