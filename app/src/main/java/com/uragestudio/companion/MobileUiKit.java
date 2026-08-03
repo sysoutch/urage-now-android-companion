@@ -193,6 +193,15 @@ final class MobileUiKit {
         return rounded(accentContainer, accent, 8);
     }
 
+    /** Flat, contiguous navigation destinations are deliberately separate from rounded form controls. */
+    GradientDrawable navigationDestinationBackground(boolean selected) {
+        return rectangular(selected ? accentContainer : surface);
+    }
+
+    int navigationDividerColor() {
+        return border;
+    }
+
     LinearLayout.LayoutParams matchWrap() {
         return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
     }
@@ -226,6 +235,12 @@ final class MobileUiKit {
         drawable.setColor(fill);
         drawable.setCornerRadius(dp(radius));
         if (stroke != Color.TRANSPARENT) drawable.setStroke(dp(1), stroke);
+        return drawable;
+    }
+
+    private GradientDrawable rectangular(int fill) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fill);
         return drawable;
     }
 

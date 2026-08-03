@@ -35,7 +35,8 @@ final class WorkspaceRailController {
         items = new LinearLayout(activity);
         items.setOrientation(tablet ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         items.setGravity(tablet ? Gravity.TOP : Gravity.CENTER_VERTICAL);
-        items.setPadding(ui.dp(8), ui.dp(7), ui.dp(8), ui.dp(7));
+        items.setPadding(tablet ? ui.dp(8) : 0, tablet ? ui.dp(7) : 0, tablet ? ui.dp(8) : 0, tablet ? ui.dp(7) : 0);
+        items.setBackgroundColor(ui.surfaceColor());
         for (Destination destination : destinations()) {
             View item = buildItem(activity, destination);
             items.addView(item, itemLayout());
@@ -73,7 +74,7 @@ final class WorkspaceRailController {
         if (!itemViews.containsKey(workspace)) return;
         for (Map.Entry<String, LinearLayout> entry : itemViews.entrySet()) {
             boolean active = entry.getKey().equals(workspace);
-            entry.getValue().setBackground(active ? ui.selectedControlBackground() : ui.controlBackground());
+            entry.getValue().setBackground(ui.navigationDestinationBackground(active));
             entry.getValue().setSelected(active);
         }
         navigation.accept(workspace);
@@ -94,7 +95,7 @@ final class WorkspaceRailController {
         LinearLayout item = new LinearLayout(activity);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(ui.dp(11), ui.dp(7), ui.dp(11), ui.dp(6));
+        item.setPadding(ui.dp(8), ui.dp(7), ui.dp(8), ui.dp(6));
         item.setClickable(true);
         item.setFocusable(true);
         item.setContentDescription("Open " + destination.label());
@@ -105,7 +106,7 @@ final class WorkspaceRailController {
         TextView label = new TextView(activity);
         label.setText(destination.label());
         label.setTextColor(ui.textColor());
-        label.setTextSize(11);
+        label.setTextSize(10);
         label.setGravity(Gravity.CENTER);
         label.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams labelLayout = new LinearLayout.LayoutParams(
@@ -113,6 +114,7 @@ final class WorkspaceRailController {
         labelLayout.topMargin = ui.dp(3);
         item.addView(label, labelLayout);
         item.setOnClickListener(ignored -> select(destination.id()));
+        item.setBackground(ui.navigationDestinationBackground(false));
         wrapper.addView(item, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         TextView badge = new TextView(activity);
@@ -150,9 +152,9 @@ final class WorkspaceRailController {
 
     private LinearLayout.LayoutParams itemLayout() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            tablet ? LinearLayout.LayoutParams.MATCH_PARENT : ui.dp(76),
+            tablet ? LinearLayout.LayoutParams.MATCH_PARENT : ui.dp(70),
             ui.dp(60));
-        params.setMargins(tablet ? 0 : ui.dp(3), tablet ? ui.dp(3) : 0, tablet ? 0 : ui.dp(3), tablet ? ui.dp(3) : 0);
+        if (tablet) params.setMargins(0, ui.dp(3), 0, ui.dp(3));
         return params;
     }
 

@@ -2,16 +2,6 @@
 
 The companion discovers exposed URage NOW dashboards on the local network, pairs from a one-scan camera QR or a one-time fallback code, and transfers generated or uploaded images, videos, audio, and 3D models.
 
-![URage Now Android Companion banner](assets/branding/urage-now-android-companion-banner.png)
-
-## App preview
-
-The companion starts with the Connection workspace, where a phone can discover a URage NOW dashboard on the local network or enter its LAN address to pair securely.
-
-![URage NOW Android Companion connection workspace](assets/screenshots/urage-now-android-companion-home.png)
-
-The repository-owned launcher icon source is [`assets/branding/urage-now-android-companion-icon.png`](assets/branding/urage-now-android-companion-icon.png). Android uses the matching adaptive icon resource on Android 10 and newer.
-
 ## Dashboard setup
 
 The easiest setup is now entirely in the dashboard:
@@ -95,19 +85,6 @@ The first build creates a persistent RSA release key and credentials under `DASH
 Release minification is intentionally disabled. The encrypted Matrix SDK includes JNA code that resolves Java bridge members from native code by their literal names; R8 changes those names and causes startup crashes. The universal artifact is already primarily native Matrix libraries, so dependable Matrix support is more valuable than the modest code-size reduction.
 
 For a production organization, replace the locally generated key through the `ANDROID_RELEASE_KEYSTORE`, `ANDROID_RELEASE_STORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS`, and `ANDROID_RELEASE_KEY_PASSWORD` environment variables and protect those values with the deployment secret store.
-
-## GitHub Releases
-
-Creating and pushing a version tag such as `v0.14.18` runs `.github/workflows/release.yml`. The workflow verifies that the tag exactly matches `VERSION_NAME`, builds signed ARM64, ARM32, x86_64, and universal APKs plus the App Bundle, writes `SHA256SUMS.txt`, and publishes all artifacts to the GitHub Release.
-
-Before the first release, configure these repository secrets in **Settings > Secrets and variables > Actions**:
-
-- `ANDROID_RELEASE_KEYSTORE_BASE64` — base64 encoding of the persistent release `.jks` file.
-- `ANDROID_RELEASE_STORE_PASSWORD`
-- `ANDROID_RELEASE_KEY_ALIAS`
-- `ANDROID_RELEASE_KEY_PASSWORD`
-
-Use the same persistent signing key used for existing installed releases. Generating a new key makes Android treat subsequent artifacts as a different app and prevents normal upgrades. You can also start the workflow manually for an existing tag; it applies the same exact version check.
 
 The client uses Android and Java platform APIs only. The paired-device token is encrypted with an Android Keystore AES-GCM key; it is not stored as plaintext preferences.
 
