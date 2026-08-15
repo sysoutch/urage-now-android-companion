@@ -29,7 +29,7 @@ The easiest setup is now entirely in the dashboard:
 
 The Dashboard Access Token QR under **Network > Connection** is for browser login and deliberately is not accepted as an Android companion credential. Android devices should use the scoped, revocable, one-use pairing QR under **Network > Devices**.
 
-Completed background generations are shown directly in their owning Image, 3D, Audio, Music, or Video Studio. Result cards load the generated thumbnail when available and open the actual media preview on tap; the Gallery remains the full searchable library. Selecting a workflow keeps the persistent LazyDev left sidebar in place.
+Completed background generations are shown directly in their owning Image, 3D, Audio, Music, or Video Studio. Result cards load the generated thumbnail when available and open the actual media preview on tap; the Gallery remains the full searchable library. Landscape keeps the persistent LazyDev left rail, while portrait puts the same destinations in a labeled bottom bar.
 
 The settings page persists the configuration in `.env.main.local`, stores generated access tokens in the operating-system credential store, updates the running listener, and shows scoped Windows Private-network firewall commands when needed.
 
@@ -123,7 +123,7 @@ Discovery sends both global and Wi-Fi-subnet broadcast probes. Guest Wi-Fi, VPNs
 
 ## Mobile Studio workflows
 
-Android Companion uses a shared Material-based mobile design system with compact status surfaces, labeled inputs, clear action hierarchy, readable selectors, and purposeful Gallery empty states. Phones and tablets now use the same persistent **LazyDev** left sidebar for **Home**, **Gallery**, **Chat**, **Image**, **3D**, **Audio**, **Music**, **Video**, **Tools**, and **Connect**. This removes the horizontally scrolling bottom rail and keeps destination position stable across screen sizes. System-bar styling is deferred until Android has created the Activity decor view, fixing the signed-release startup crash seen on Android 16.
+Android Companion uses a shared Material-based mobile design system with compact status surfaces, labeled inputs, clear action hierarchy, readable selectors, and purposeful Gallery empty states. In landscape it uses a persistent **LazyDev** left rail for **Home**, **Gallery**, **Chat**, **Image**, **3D**, **Audio**, **Music**, **Video**, **Tools**, and **Connect**. In portrait those same labeled destinations move to a horizontally scrollable bottom bar, leaving the screen width for studio content. System-bar styling is deferred until Android has created the Activity decor view, fixing the signed-release startup crash seen on Android 16.
 
 The **Tools** workspace loads the paired dashboard's current tool catalog rather than shipping a hardcoded copy. It renders horizontally scrollable category tabs, tool summaries, and the selected tool inside a constrained WebView. Tool HTML, scripts, styles, and media are fetched through the authenticated companion API; WebView file/content access and external navigation are disabled. Enable **Browse Tools** under **Settings > Network > Remote Access**, or grant `tools.browse` only to a selected device. The permission defaults off because server tools can execute JavaScript.
 
@@ -139,7 +139,7 @@ The focused workflow capabilities are:
 - Video exposes prompt, negative prompt, frame size, duration, frame rate, steps, and seed controls, and can use a recent Gallery image as the image-to-video source.
 - Every media Studio can save the complete current prompt configuration as a named preset, mark useful presets as favorites, reapply them, and delete them independently of the other Studios.
 
-Phone and tablet orientation changes are handled without recreating the Android activity. In-progress form values, selected media and workspace, scroll positions, conversation UI, job results, and the active 3D camera therefore stay in place across rotation.
+Phone and tablet orientation changes recreate the activity so the navigation can switch between the bottom bar and left rail. The active workspace is restored; durable jobs and persisted media remain available after rotation.
 
 These capabilities default to disabled. Enable the individual Chat, Image, Audio, Music, Video, and 3D permissions under **Settings > Network > Remote Access**, or grant them only to a selected phone under **Network > Devices**. Prompt-to-3D needs both the Image and 3D permissions because it creates a source image before the model.
 
@@ -155,7 +155,7 @@ In Matrix mode, camera captures and locally retained Matrix Gallery images can b
 
 Chat renders headings, emphasis, lists, links, inline code, and fenced code blocks inside distinct conversation bubbles. A live Markdown preview applies the same presentation while the user is still composing.
 
-Android feature ownership is split by responsibility: `ConnectionWorkspaceController` only composes route selection, LAN pairing, Matrix relay, and theme sections; the sections independently own their state and presentation. `WorkspaceRailController` owns the shared phone/tablet left sidebar, while `WorkflowJobRailBinder` independently maps persisted job state to destination badges. `ToolsWorkspaceController` owns live catalog categories and authenticated WebView resource delivery. `GalleryWorkspaceController` owns browsing, pagination, transfers, and previews, while `ChatWorkspaceController` owns streaming and conversation persistence. `WorkflowWorkspaceController` is an intentionally small router over focused Image, Audio/Music, Video, and 3D controllers. `MediaStudioSupport` centralizes durable job presentation, source-image loading, and queue selection without duplicating them across forms.
+Android feature ownership is split by responsibility: `ConnectionWorkspaceController` only composes route selection, LAN pairing, Matrix relay, and theme sections; the sections independently own their state and presentation. `WorkspaceRailController` owns the responsive landscape rail and portrait bottom bar, while `WorkflowJobRailBinder` independently maps persisted job state to destination badges. `ToolsWorkspaceController` owns live catalog categories and authenticated WebView resource delivery. `GalleryWorkspaceController` owns browsing, pagination, transfers, and previews, while `ChatWorkspaceController` owns streaming and conversation persistence. `WorkflowWorkspaceController` is an intentionally small router over focused Image, Audio/Music, Video, and 3D controllers. `MediaStudioSupport` centralizes durable job presentation, source-image loading, and queue selection without duplicating them across forms.
 
 Controller-level Android instrumentation tests cover left-sidebar navigation, direct Studio and Tools access, saved-pairing startup restoration, LAN/Internet route visibility, and theme-follow presentation. Compile them with `.\gradlew.bat :app:compileDebugAndroidTestJavaWithJavac`; execute them on an attached emulator or device with `.\gradlew.bat connectedDebugAndroidTest`.
 

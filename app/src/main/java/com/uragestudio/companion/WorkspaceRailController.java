@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -13,49 +14,61 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** Owns the persistent LazyDev left sidebar on phones and tablets. */
+/** Owns responsive workspace navigation: a left rail in landscape and bottom bar in portrait. */
 final class WorkspaceRailController {
     private record Destination(String id, String label, int icon, int color) {}
 
     private final MobileUiKit ui;
     private final Consumer<String> navigation;
+    private final boolean bottomNavigation;
     private final View view;
     private final LinearLayout items;
     private final Map<String, LinearLayout> itemViews = new LinkedHashMap<>();
     private final Map<String, TextView> badges = new LinkedHashMap<>();
     private final Map<String, String> labels = new LinkedHashMap<>();
 
-    WorkspaceRailController(android.app.Activity activity, Consumer<String> navigation) {
+    WorkspaceRailController(android.app.Activity activity, Consumer<String> navigation, boolean bottomNavigation) {
         this.navigation = navigation;
+        this.bottomNavigation = bottomNavigation;
         ui = new MobileUiKit(activity);
         items = new LinearLayout(activity);
-        items.setOrientation(LinearLayout.VERTICAL);
-        items.setGravity(Gravity.TOP);
-        items.setPadding(ui.dp(6), ui.dp(8), ui.dp(6), ui.dp(8));
+        items.setOrientation(bottomNavigation ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        items.setGravity(bottomNavigation ? Gravity.CENTER_VERTICAL : Gravity.TOP);
+        items.setPadding(ui.dp(6), bottomNavigation ? ui.dp(2) : ui.dp(8), ui.dp(6), bottomNavigation ? ui.dp(2) : ui.dp(8));
 
-        TextView brand = new TextView(activity);
-        brand.setText("LazyDev");
-        brand.setTextColor(ui.accentStrongColor());
-        brand.setTextSize(13);
-        brand.setGravity(Gravity.CENTER);
-        brand.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-        items.addView(brand, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(46)));
+        if (!bottomNavigation) {
+            TextView brand = new TextView(activity);
+            brand.setText("LazyDev");
+            brand.setTextColor(ui.accentStrongColor());
+            brand.setTextSize(13);
+            brand.setGravity(Gravity.CENTER);
+            brand.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+            items.addView(brand, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(46)));
+        }
 
         for (Destination destination : destinations()) {
             items.addView(buildItem(activity, destination), itemLayout());
         }
-        ScrollView vertical = new ScrollView(activity);
-        vertical.setVerticalScrollBarEnabled(false);
-        vertical.setFillViewport(true);
-        vertical.setBackgroundColor(ui.surfaceColor());
-        vertical.addView(items);
-        view = vertical;
+        if (bottomNavigation) {
+            HorizontalScrollView horizontal = new HorizontalScrollView(activity);
+            horizontal.setHorizontalScrollBarEnabled(false);
+            horizontal.setFillViewport(true);
+            horizontal.setBackgroundColor(ui.surfaceColor());
+            horizontal.addView(items, new HorizontalScrollView.LayoutParams(
+                HorizontalScrollView.LayoutParams.WRAP_CONTENT, HorizontalScrollView.LayoutParams.MATCH_PARENT));
+            view = horizontal;
+        } else {
+            ScrollView vertical = new ScrollView(activity);
+            vertical.setVerticalScrollBarEnabled(false);
+            vertical.setFillViewport(true);
+            vertical.setBackgroundColor(ui.surfaceColor());
+            vertical.addView(items);
+            view = vertical;
+        }
     }
 
     View view() { return view; }
-
-    static boolean usesLeftSidebar() { return true; }
 
     void select(String workspace) {
         if (!itemViews.containsKey(workspace)) return;
@@ -140,6 +153,11 @@ final class WorkspaceRailController {
     }
 
     private LinearLayout.LayoutParams itemLayout() {
+        if (bottomNavigation) {
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(68), LinearLayout.LayoutParams.MATCH_PARENT);
+            params.setMargins(ui.dp(2), 0, ui.dp(2), 0);
+            return params;
+        }
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(54));
         params.setMargins(0, ui.dp(2), 0, ui.dp(2));

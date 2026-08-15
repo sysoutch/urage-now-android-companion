@@ -3,6 +3,7 @@ package com.uragestudio.companion;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -97,13 +98,19 @@ public final class MainActivity extends Activity {
         content.addView(workflows.model3dView(), frameMatch());
         content.addView(tools.view(), frameMatch());
 
-        navigation = new WorkspaceRailController(this, this::showWorkspace);
+        boolean portraitNavigation = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+        navigation = new WorkspaceRailController(this, this::showWorkspace, portraitNavigation);
         jobRailBinder = new WorkflowJobRailBinder(this, main, navigation);
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.HORIZONTAL);
-        body.addView(navigation.view(), new LinearLayout.LayoutParams(ui.dp(92), LinearLayout.LayoutParams.MATCH_PARENT));
-        body.addView(content, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
-        root.addView(body, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        if (portraitNavigation) {
+            root.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+            root.addView(navigation.view(), new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(68)));
+        } else {
+            LinearLayout body = new LinearLayout(this);
+            body.setOrientation(LinearLayout.HORIZONTAL);
+            body.addView(navigation.view(), new LinearLayout.LayoutParams(ui.dp(92), LinearLayout.LayoutParams.MATCH_PARENT));
+            body.addView(content, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+            root.addView(body, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        }
         return root;
     }
 
