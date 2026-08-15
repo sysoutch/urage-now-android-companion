@@ -416,7 +416,7 @@ public final class DashboardApi {
         }
         body.put("saveSource", false);
 
-        HttpURLConnection connection = open("POST", "/api/speech-stt", true);
+        HttpURLConnection connection = open("POST", "/api/companion/workflows/stt", true);
         connection.setReadTimeout(15 * 60 * 1000);
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json");

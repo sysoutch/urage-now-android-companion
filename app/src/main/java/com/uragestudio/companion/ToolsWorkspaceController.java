@@ -78,14 +78,23 @@ final class ToolsWorkspaceController {
         header.addView(activeToolTitle, ui.spacedMatchWrap());
         status = ui.status("Open Tools to load the server catalog.");
         header.addView(status, ui.spacedMatchWrap());
+        LinearLayout toolNavigationActions = new LinearLayout(activity);
+        toolNavigationActions.setOrientation(LinearLayout.HORIZONTAL);
         backToTools = ui.button("Back to tools", MobileUiKit.ActionStyle.QUIET);
         backToTools.setVisibility(View.GONE);
         backToTools.setOnClickListener(ignored -> showToolList());
-        header.addView(backToTools, ui.matchWrap());
         openInBrowser = ui.button("Open tool in browser", MobileUiKit.ActionStyle.QUIET);
         openInBrowser.setVisibility(View.GONE);
         openInBrowser.setOnClickListener(ignored -> openActiveToolInBrowser());
-        header.addView(openInBrowser, ui.matchWrap());
+        LinearLayout.LayoutParams backToToolsLayout = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        backToToolsLayout.setMarginEnd(ui.dp(4));
+        toolNavigationActions.addView(backToTools, backToToolsLayout);
+        LinearLayout.LayoutParams openInBrowserLayout = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        openInBrowserLayout.setMarginStart(ui.dp(4));
+        toolNavigationActions.addView(openInBrowser, openInBrowserLayout);
+        header.addView(toolNavigationActions, ui.matchWrap());
         view.addView(header, ui.matchWrap());
 
         categoryTabs = new LinearLayout(activity);
@@ -253,7 +262,7 @@ final class ToolsWorkspaceController {
                     openInBrowser.setTag(tool.entryPath());
                     toolListScroll.setVisibility(View.GONE);
                     webView.setVisibility(View.VISIBLE);
-                    status.setText(tool.categoryLabel() + " · served by dashboard");
+                    status.setVisibility(View.GONE);
                     webView.loadDataWithBaseURL(api.absoluteUrl(tool.entryPath()), html, "text/html", "UTF-8", null);
                     appStatus.accept("Opened " + tool.title() + " from the dashboard.");
                 });
@@ -270,6 +279,7 @@ final class ToolsWorkspaceController {
         webView.stopLoading();
         webView.setVisibility(View.GONE);
         toolListScroll.setVisibility(View.VISIBLE);
+        status.setVisibility(View.VISIBLE);
         backToTools.setVisibility(View.GONE);
         openInBrowser.setVisibility(View.GONE);
         openInBrowser.setTag(null);

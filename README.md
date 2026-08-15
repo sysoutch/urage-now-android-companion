@@ -14,8 +14,9 @@ URage NOW Android Companion is the free, open companion app for URage NOW Studio
 
 - Theme-aware Home overview that follows the paired dashboard's selected theme.
 - Chat, Image, 3D, Audio, Music, and Video studios with durable background jobs.
-- Encrypted Matrix relay for internet Chat and media workflows, including voice transcription through the dashboard STT workflow.
-- Gallery, dashboard-provided tools, QR pairing, scoped permissions, and Android Keystore-backed credentials.
+- Encrypted Matrix relay for internet Chat and media workflows, plus authenticated LAN and Matrix voice transcription through the dashboard STT workflow.
+- Recorded chat audio starts its LAN or Matrix STT handoff automatically when recording stops by default; Chat Studio settings can keep it attached until Send is tapped. Transcripts are inserted into the composer for review by default, while automatic transcript sending remains opt-in. Empty STT results and delivery errors retain the clip, leave Send enabled for a retry, and report the actual failing handoff stage instead of masking it as a connection error.
+- Gallery, dashboard-provided tools with a compact in-app browser, QR pairing, scoped permissions, and Android Keystore-backed credentials.
 
 ## Dashboard setup
 

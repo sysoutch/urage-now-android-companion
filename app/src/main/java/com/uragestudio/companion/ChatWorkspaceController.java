@@ -34,6 +34,7 @@ final class ChatWorkspaceController {
     private static final int REQUEST_AUDIO_FILE = 1001;
     private static final int RECORDING_PERMISSION_REQUEST = 1002;
     private static final String AUTO_SEND_VOICE_TRANSCRIPTS = "chatAutoSendVoiceTranscripts";
+    private static final String AUTO_SEND_RECORDING_ON_STOP = "chatAutoSendRecordingOnStop";
 
     private final Activity activity;
     private final ExecutorService executor;
@@ -55,6 +56,7 @@ final class ChatWorkspaceController {
     private boolean isRecording = false;
     private TextView recordingIndicator;
     private Button micButton;
+    private Button sendButton;
     private EditText promptEditText;
     private File pendingAudioAttachment;
     private TextView audioAttachmentLabel;
@@ -99,10 +101,10 @@ final class ChatWorkspaceController {
         transcriptScroll.addView(transcript.view());
         panel.addView(transcriptScroll, weightedHeight());
 
-        // Audio action row: mic record + audio upload buttons
+        // Composer-leading audio actions stay beside the message field.
         LinearLayout audioActionsRow = new LinearLayout(activity);
         audioActionsRow.setOrientation(LinearLayout.HORIZONTAL);
-        audioActionsRow.setPadding(0, dp(4), 0, dp(4));
+        audioActionsRow.setGravity(Gravity.BOTTOM);
         micButton = iconButton(
             "🎙",
             "Start/stop voice recording",
@@ -126,9 +128,6 @@ final class ChatWorkspaceController {
         recordingIndicator.setTextSize(12f);
         recordingIndicator.setVisibility(View.GONE);
         recordingIndicator.setText("● Recording...");
-        audioActionsRow.addView(recordingIndicator, weighted());
-
-        panel.addView(audioActionsRow, matchWrap());
 
         LinearLayout composerDock = new LinearLayout(activity);
         composerDock.setOrientation(LinearLayout.VERTICAL);
@@ -145,12 +144,16 @@ final class ChatWorkspaceController {
         audioAttachmentLabel.setVisibility(View.GONE);
         audioAttachmentLabel.setPadding(0, dp(4), 0, dp(4));
         composerDock.addView(audioAttachmentLabel, matchWrap());
+        composerDock.addView(recordingIndicator, matchWrap());
 
         LinearLayout composer = new LinearLayout(activity);
         composer.setOrientation(LinearLayout.HORIZONTAL);
         composer.setGravity(Gravity.BOTTOM);
+        composer.addView(audioActionsRow, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         composer.addView(promptEditText, weighted());
         Button send = iconButton("➤", "Send message", MobileUiKit.ActionStyle.PRIMARY);
+        sendButton = send;
         send.setOnClickListener(ignored -> sendComposerText(send));
         composer.addView(send, iconAction());
         Button options = iconButton("⋮", "More chat options", MobileUiKit.ActionStyle.SECONDARY);
@@ -186,27 +189,46 @@ final class ChatWorkspaceController {
     }
 
     private void showChatSettings() {
+        LinearLayout settings = new LinearLayout(activity);
+        settings.setOrientation(LinearLayout.VERTICAL);
         CheckBox autoSend = new CheckBox(activity);
         autoSend.setText("Automatically send voice transcriptions");
         autoSend.setTextColor(ui.textColor());
         autoSend.setChecked(autoSendVoiceTranscripts());
         autoSend.setPadding(dp(20), dp(12), dp(20), dp(12));
+        CheckBox autoSendRecording = new CheckBox(activity);
+        autoSendRecording.setText("Automatically send recording on stop");
+        autoSendRecording.setTextColor(ui.textColor());
+        autoSendRecording.setChecked(autoSendRecordingOnStop());
+        autoSendRecording.setPadding(dp(20), dp(12), dp(20), dp(12));
+        settings.addView(autoSendRecording, matchWrap());
+        settings.addView(autoSend, matchWrap());
         new android.app.AlertDialog.Builder(activity)
             .setTitle("Chat Studio settings")
-            .setMessage("When enabled, a completed recording is transcribed and sent as a chat message immediately.")
-            .setView(autoSend)
+            .setMessage("Stopped recordings can start STT immediately. Voice transcripts can then stay editable or send as chat messages.")
+            .setView(settings)
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Save", (dialog, ignored) -> {
-                preferences.edit().putBoolean(AUTO_SEND_VOICE_TRANSCRIPTS, autoSend.isChecked()).apply();
-                status.accept(autoSend.isChecked()
-                    ? "Voice transcripts will send automatically."
-                    : "Voice transcripts will stay in the composer for editing.");
+                preferences.edit()
+                    .putBoolean(AUTO_SEND_RECORDING_ON_STOP, autoSendRecording.isChecked())
+                    .putBoolean(AUTO_SEND_VOICE_TRANSCRIPTS, autoSend.isChecked())
+                    .apply();
+                status.accept(autoSendRecording.isChecked()
+                    ? "Stopped recordings will start transcription automatically."
+                    : "Stopped recordings will remain attached until you tap Send.");
             })
             .show();
     }
 
     private boolean autoSendVoiceTranscripts() {
-        return preferences.getBoolean(AUTO_SEND_VOICE_TRANSCRIPTS, true);
+        // Keep the transcript visible and editable by default. Auto-send is an
+        // explicit Chat Studio preference because it otherwise clears the
+        // composer immediately after a successful STT relay.
+        return preferences.getBoolean(AUTO_SEND_VOICE_TRANSCRIPTS, false);
+    }
+
+    private boolean autoSendRecordingOnStop() {
+        return preferences.getBoolean(AUTO_SEND_RECORDING_ON_STOP, true);
     }
 
     private void synchronize(Button button) {
@@ -420,11 +442,18 @@ final class ChatWorkspaceController {
             status.accept("Recording was not saved. Try again.");
             return;
         }
+        if (!recordingFile.isFile() || recordingFile.length() == 0L) {
+            status.accept("Recording is empty. Hold Record for a moment before stopping it.");
+            return;
+        }
         pendingAudioAttachment = recordingFile;
         main.post(() -> {
             audioAttachmentLabel.setText("Audio attached — " + recordingFile.getName());
             audioAttachmentLabel.setVisibility(View.VISIBLE);
             status.accept("Audio attached. Tap Send to transcribe it.");
+            if (autoSendRecordingOnStop() && sendButton != null) {
+                sendComposerText(sendButton);
+            }
         });
     }
 
@@ -463,29 +492,43 @@ final class ChatWorkspaceController {
             });
             return;
         }
+        boolean delivered = false;
         try {
+            main.post(() -> status.accept(usesMatrix()
+                ? "Uploading audio to Matrix..."
+                : "Uploading audio to the dashboard STT workflow..."));
             String transcriptText = usesMatrix()
                 ? requiredMatrixRelay().transcribeAudio(audioFile)
                 : sttTranscribe(audioFile);
             if (transcriptText == null || transcriptText.trim().isEmpty()) {
-                main.post(() -> status.accept("STT returned empty text. Try again."));
+                main.post(() -> {
+                    send.setEnabled(true);
+                    status.accept("STT returned empty text. The audio is still attached; tap Send to retry.");
+                });
                 return;
             }
+            delivered = true;
+            clearPendingAudioAttachment(audioFile);
             handleVoiceTranscript(transcriptText, send);
-        } catch (IllegalStateException e) {
-            main.post(() -> {
-                send.setEnabled(true);
-                status.accept("Voice STT requires a paired dashboard or configured Matrix relay.");
-            });
         } catch (Exception error) {
             final String msg = message(error, "unknown error");
             main.post(() -> {
                 send.setEnabled(true);
-                status.accept("STT transcription failed: " + msg);
+                status.accept("Audio delivery/transcription failed: " + msg);
             });
         } finally {
-            if (audioFile.exists() && !audioFile.delete()) audioFile.deleteOnExit();
+            if (delivered && audioFile.exists() && !audioFile.delete()) audioFile.deleteOnExit();
         }
+    }
+
+    private void clearPendingAudioAttachment(File deliveredFile) {
+        main.post(() -> {
+            if (pendingAudioAttachment != null
+                && pendingAudioAttachment.getAbsolutePath().equals(deliveredFile.getAbsolutePath())) {
+                pendingAudioAttachment = null;
+                audioAttachmentLabel.setVisibility(View.GONE);
+            }
+        });
     }
 
     private void transcribeUriIntoComposer(Uri uri) {
@@ -572,8 +615,6 @@ final class ChatWorkspaceController {
 
         if (pendingAudioAttachment != null) {
             File audioFile = pendingAudioAttachment;
-            pendingAudioAttachment = null;
-            audioAttachmentLabel.setVisibility(View.GONE);
             send.setEnabled(false);
             status.accept(usesMatrix()
                 ? "Sending attached audio to Matrix for transcription…"
