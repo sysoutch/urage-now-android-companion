@@ -14,7 +14,7 @@ The easiest setup is now entirely in the dashboard:
 
 The Dashboard Access Token QR under **Network > Connection** is for browser login and deliberately is not accepted as an Android companion credential. Android devices should use the scoped, revocable, one-use pairing QR under **Network > Devices**.
 
-Completed background generations are shown directly in their owning Image, 3D, Audio, Music, or Video Studio. Result cards load the generated thumbnail when available and open the actual media preview on tap; the Gallery remains the full searchable library. Selecting a workflow no longer repositions the horizontal phone rail.
+Completed background generations are shown directly in their owning Image, 3D, Audio, Music, or Video Studio. Result cards load the generated thumbnail when available and open the actual media preview on tap; the Gallery remains the full searchable library. Selecting a workflow keeps the persistent LazyDev left sidebar in place.
 
 The settings page persists the configuration in `.env.main.local`, stores generated access tokens in the operating-system credential store, updates the running listener, and shows scoped Windows Private-network firewall commands when needed.
 
@@ -53,6 +53,8 @@ $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+
+Matrix relay builds include locally packaged Matrix Rust SDK and rustls verifier AARs. Together they initialize and bridge Android's platform TLS verifier before the app creates a Matrix client; keep both AARs with the project when building, rather than replacing only the SDK with the published dependency.
 
 Use that debug APK rather than `app-release-unsigned.apk`: the debug artifact is signed automatically and is directly installable. It requires Android 10 (API 29) or newer. If Android reports that the package is invalid, rebuild with `clean :app:assembleDebug` and verify/install the exact artifact:
 
@@ -106,7 +108,9 @@ Discovery sends both global and Wi-Fi-subnet broadcast probes. Guest Wi-Fi, VPNs
 
 ## Mobile Studio workflows
 
-Android Companion `0.14.3` uses a shared Material-based mobile design system with compact status surfaces, labeled inputs, clear action hierarchy, readable selectors, and purposeful Gallery empty states. On phones, a persistent horizontally scrollable bottom rail opens **Gallery**, **Chat**, **Image**, **3D**, **Audio**, **Music**, **Video**, and **Connect** directly. At the Android `sw600dp` tablet boundary, the same destinations move to a vertical side rail, preserving Studio height without introducing a second navigation model. System-bar styling is deferred until Android has created the Activity decor view, fixing the signed-release startup crash seen on Android 16.
+Android Companion uses a shared Material-based mobile design system with compact status surfaces, labeled inputs, clear action hierarchy, readable selectors, and purposeful Gallery empty states. Phones and tablets now use the same persistent **LazyDev** left sidebar for **Home**, **Gallery**, **Chat**, **Image**, **3D**, **Audio**, **Music**, **Video**, **Tools**, and **Connect**. This removes the horizontally scrolling bottom rail and keeps destination position stable across screen sizes. System-bar styling is deferred until Android has created the Activity decor view, fixing the signed-release startup crash seen on Android 16.
+
+The **Tools** workspace loads the paired dashboard's current tool catalog rather than shipping a hardcoded copy. It renders horizontally scrollable category tabs, tool summaries, and the selected tool inside a constrained WebView. Tool HTML, scripts, styles, and media are fetched through the authenticated companion API; WebView file/content access and external navigation are disabled. Enable **Browse Tools** under **Settings > Network > Remote Access**, or grant `tools.browse` only to a selected device. The permission defaults off because server tools can execute JavaScript.
 
 Under **Connect > Studio theme**, Android follows the paired dashboard's persisted Fire, Light, Smoke, Blood, Love, Water, Crystal, Nature, or Rock theme by default. The last synchronized theme is cached for offline startup. Disable **Follow paired dashboard theme** to retain and apply an Android-only override; re-enabling it does not discard that local choice. Palettes control the complete mobile component system, workspace rail, native selectors, Markdown/code presentation, waveform, gallery cards, and system bars. Light uses a real light Material window theme rather than recoloring only the content.
 
@@ -136,13 +140,15 @@ In Matrix mode, camera captures and locally retained Matrix Gallery images can b
 
 Chat renders headings, emphasis, lists, links, inline code, and fenced code blocks inside distinct conversation bubbles. A live Markdown preview applies the same presentation while the user is still composing.
 
-Android feature ownership is split by responsibility: `ConnectionWorkspaceController` only composes route selection, LAN pairing, Matrix relay, and theme sections; the sections independently own their state and presentation. `WorkspaceRailController` owns the adaptive phone/tablet rail without a second routing layer, while `WorkflowJobRailBinder` independently maps persisted job state to destination badges. `GalleryWorkspaceController` owns browsing, pagination, transfers, and previews, while `ChatWorkspaceController` owns streaming and conversation persistence. `WorkflowWorkspaceController` is an intentionally small router over focused Image, Audio/Music, Video, and 3D controllers. `MediaStudioSupport` centralizes durable job presentation, source-image loading, and queue selection without duplicating them across forms.
+Android feature ownership is split by responsibility: `ConnectionWorkspaceController` only composes route selection, LAN pairing, Matrix relay, and theme sections; the sections independently own their state and presentation. `WorkspaceRailController` owns the shared phone/tablet left sidebar, while `WorkflowJobRailBinder` independently maps persisted job state to destination badges. `ToolsWorkspaceController` owns live catalog categories and authenticated WebView resource delivery. `GalleryWorkspaceController` owns browsing, pagination, transfers, and previews, while `ChatWorkspaceController` owns streaming and conversation persistence. `WorkflowWorkspaceController` is an intentionally small router over focused Image, Audio/Music, Video, and 3D controllers. `MediaStudioSupport` centralizes durable job presentation, source-image loading, and queue selection without duplicating them across forms.
 
-Controller-level Android instrumentation tests cover workspace-rail navigation, direct Studio access without a Create submenu, saved-pairing startup restoration, LAN/Internet route visibility, theme-follow presentation, and the phone/tablet navigation boundary. Compile them with `.\gradlew.bat :app:compileDebugAndroidTestJavaWithJavac`; execute them on an attached emulator or device with `.\gradlew.bat connectedDebugAndroidTest`.
+Controller-level Android instrumentation tests cover left-sidebar navigation, direct Studio and Tools access, saved-pairing startup restoration, LAN/Internet route visibility, and theme-follow presentation. Compile them with `.\gradlew.bat :app:compileDebugAndroidTestJavaWithJavac`; execute them on an attached emulator or device with `.\gradlew.bat connectedDebugAndroidTest`.
 
 Use separate Matrix accounts for the phone and bot. The bot ignores its own events by design, so using the bot token in Android cannot run workflows. Matrix Chat streams encrypted, ordered `URAGE_PROGRESS` deltas before the correlated final result; duplicated or out-of-order progress events are ignored.
 
 Matrix networking, timeline decryption, session persistence, and encrypted-media validation use the official Matrix Rust SDK Android bindings. Completed Matrix Image/3D results are decrypted into the app-private Matrix Gallery; images render local previews and any item can be copied to `Downloads/URage NOW`.
+
+The Matrix connection performs one immediate SDK sync before opening its normal long-poll loop. This initializes the local room store deterministically, so sending does not fail simply because a 30-second first long-poll response outlasts the old 20-second room-discovery window.
 
 Image, 3D, Audio, Music, and Video requests are persisted as Android `JobScheduler` work with network constraints. Their rail destinations show live badges for queued, running, and downloading jobs, capped visually at `99+`. The **Background Jobs** view reports queued, running, downloading, completed, failed, and cancelled states. Jobs survive Activity/app restarts, publish progress notifications, and can be cancelled from their Studio workspace. Completed jobs retain their media descriptor, update the owning Studio's latest-result card immediately, open in the rich preview on tap, and invalidate Gallery automatically. Dashboard-backed results remain in the dashboard Gallery; Matrix-backed results are downloaded after generation.
 
@@ -159,6 +165,6 @@ Release builds publish ARM64, ARM32, x86_64, universal APKs, and a signed AAB. T
 
 ## Device permissions
 
-Dashboard **Settings > Network > Remote Access** defines defaults for all paired companion devices. Browse, download, upload, metadata editing, deletion, Chat, Image, Audio, Music, Video, and 3D generation are separate capabilities; raw HTTP verbs are shown only as an explanatory mapping. **Network > Devices** can save an override for one paired phone, restore inheritance, or revoke that device entirely. Existing devices preserve browse/download/upload behavior while metadata editing, deletion, and Studio workflows start disabled.
+Dashboard **Settings > Network > Remote Access** defines defaults for all paired companion devices. Media browse, download, upload, metadata editing, deletion, server-tool browsing, Chat, Image, Audio, Music, Video, and 3D generation are separate capabilities; raw HTTP verbs are shown only as an explanatory mapping. **Network > Devices** can save an override for one paired phone, restore inheritance, or revoke that device entirely. Existing devices preserve media browse/download/upload behavior while metadata editing, deletion, Tools, and Studio workflows start disabled.
 
 The Devices tab can also export/import the versioned policy document and display the append-only access audit. The audit rotates at 5 MiB and records pairing/revocation, policy changes, and allowed or denied capability checks.

@@ -27,7 +27,6 @@ final class VideoStudioController {
 
     private LinearLayout build() {
         LinearLayout panel = support.panel("Video Studio", "Generate a video clip with deliberate timing and framing controls.");
-        support.addStudioContext(panel);
         EditText prompt = support.input("Describe the shot, motion, camera, lighting, and style");
         prompt.setMinLines(4);
         prompt.setGravity(Gravity.TOP);

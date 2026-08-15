@@ -29,7 +29,6 @@ final class AudioMusicStudioController {
 
     private LinearLayout buildAudio() {
         LinearLayout panel = support.panel("Audio Studio", "Generate sound effects, ambience, and prompt-driven audio.");
-        support.addStudioContext(panel);
         EditText prompt = support.input("Describe the sound to generate");
         prompt.setMinLines(4);
         prompt.setGravity(Gravity.TOP);
@@ -67,7 +66,6 @@ final class AudioMusicStudioController {
 
     private LinearLayout buildMusic() {
         LinearLayout panel = support.panel("Music Studio", "Compose instrumental or vocal music from tags and optional lyrics.");
-        support.addStudioContext(panel);
         EditText tags = support.input("ambient, cinematic, piano, slow");
         panel.addView(support.ui.field("Music tags", "Comma-separated genre, mood, instrumentation, vocal, and production cues.", tags), support.layout());
         EditText lyrics = support.input("[verse]\n...\n\n[chorus]\n...");

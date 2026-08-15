@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import java.io.File;
 import java.net.URI;
@@ -23,7 +24,12 @@ final class StudioWorkflowResultView extends LinearLayout {
     private final ImageView preview;
     private final TextView title;
     private final TextView detail;
+    private ImageGenerationPlaceholder imageGenerationPlaceholder;
     private android.widget.Button action;
+    private android.widget.Button actionOptions;
+    private LinearLayout actionRow;
+    private TextView actionStatus;
+    private Consumer<MediaItem> actionCallback;
     private Model3dPreviewView modelPreview;
     private String boundThumbnail = "";
     private MediaItem displayedItem;
@@ -57,9 +63,22 @@ final class StudioWorkflowResultView extends LinearLayout {
         displayedItem = null;
         boundThumbnail = "";
         preview.setVisibility(View.GONE);
+        hideImageGenerationPlaceholder();
         if (modelPreview != null) modelPreview.setVisibility(View.GONE);
-        if (action != null) action.setVisibility(View.GONE);
+        setActionVisibility(View.GONE);
         title.setText(value);
+        detail.setVisibility(View.GONE);
+        setClickable(false);
+    }
+
+    void showImageGenerationPlaceholder() {
+        displayedItem = null;
+        boundThumbnail = "";
+        preview.setVisibility(View.GONE);
+        if (modelPreview != null) modelPreview.setVisibility(View.GONE);
+        setActionVisibility(View.GONE);
+        imageGenerationPlaceholder().setVisibility(View.VISIBLE);
+        title.setVisibility(View.GONE);
         detail.setVisibility(View.GONE);
         setClickable(false);
     }
@@ -69,7 +88,8 @@ final class StudioWorkflowResultView extends LinearLayout {
         ExecutorService executor, Handler main
     ) {
         displayedItem = item;
-        if (action != null) action.setVisibility(View.VISIBLE);
+        hideImageGenerationPlaceholder();
+        setActionVisibility(View.VISIBLE);
         title.setText(item.title() == null || item.title().isBlank() ? item.fileName() : item.title());
         boolean model3d = "model3d".equals(item.kind());
         detail.setText(item.kind().toUpperCase(Locale.ROOT) + "  ·  " + item.fileName()
@@ -87,16 +107,80 @@ final class StudioWorkflowResultView extends LinearLayout {
     }
 
     void setAction(String label, Consumer<MediaItem> callback) {
-        if (action == null) {
-            action = ui.button(label, MobileUiKit.ActionStyle.SECONDARY);
-            action.setVisibility(View.GONE);
-            addView(action, ui.spacedMatchWrap());
-        } else {
-            action.setText(label);
-        }
-        action.setOnClickListener(ignored -> {
-            if (displayedItem != null) callback.accept(displayedItem);
+        ensureActionRow();
+        action.setText(label);
+        actionCallback = callback;
+        actionOptions.setVisibility(View.GONE);
+    }
+
+    /** Adds a compact overflow selector without duplicating the result-card action layout. */
+    void setActionWithOption(
+        String primaryLabel, Consumer<MediaItem> primaryCallback,
+        String optionLabel, Consumer<MediaItem> optionCallback
+    ) {
+        ensureActionRow();
+        actionOptions.setVisibility(View.VISIBLE);
+        selectAction(primaryLabel, primaryCallback);
+        actionOptions.setOnClickListener(anchor -> {
+            PopupMenu menu = new PopupMenu(activity, anchor);
+            menu.getMenu().add(primaryLabel);
+            menu.getMenu().add(optionLabel);
+            menu.setOnMenuItemClickListener(item -> {
+                if (primaryLabel.contentEquals(item.getTitle())) selectAction(primaryLabel, primaryCallback);
+                else selectAction(optionLabel, optionCallback);
+                return true;
+            });
+            menu.show();
         });
+    }
+
+    void showActionStatus(String value, boolean error) {
+        ensureActionRow();
+        if (actionStatus == null) {
+            actionStatus = ui.body("");
+            actionStatus.setPadding(ui.dp(2), ui.dp(3), ui.dp(2), 0);
+            addView(actionStatus, ui.spacedMatchWrap());
+        }
+        actionStatus.setText(value);
+        actionStatus.setTextColor(error ? ui.dangerColor() : ui.textMutedColor());
+        actionStatus.setVisibility(View.VISIBLE);
+    }
+
+    void setActionPending(boolean pending) {
+        if (action != null) action.setEnabled(!pending);
+        if (actionOptions != null) actionOptions.setEnabled(!pending);
+    }
+
+    private void ensureActionRow() {
+        if (actionRow != null) return;
+        actionRow = new LinearLayout(activity);
+        actionRow.setOrientation(HORIZONTAL);
+        actionRow.setGravity(Gravity.CENTER_VERTICAL);
+        action = ui.button("Action", MobileUiKit.ActionStyle.SECONDARY);
+        action.setVisibility(View.GONE);
+        action.setOnClickListener(ignored -> {
+            if (displayedItem != null && actionCallback != null) actionCallback.accept(displayedItem);
+        });
+        actionRow.addView(action, ui.weighted());
+        actionOptions = ui.button("\u2026", MobileUiKit.ActionStyle.QUIET);
+        actionOptions.setContentDescription("More action options");
+        actionOptions.setVisibility(View.GONE);
+        LinearLayout.LayoutParams optionsParams = new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48));
+        optionsParams.setMargins(ui.dp(6), 0, 0, 0);
+        actionRow.addView(actionOptions, optionsParams);
+        actionRow.setVisibility(View.GONE);
+        addView(actionRow, ui.spacedMatchWrap());
+    }
+
+    private void selectAction(String label, Consumer<MediaItem> callback) {
+        action.setText(label);
+        actionCallback = callback;
+        action.setVisibility(View.VISIBLE);
+        actionRow.setVisibility(View.VISIBLE);
+    }
+
+    private void setActionVisibility(int visibility) {
+        if (actionRow != null) actionRow.setVisibility(visibility);
     }
 
     Model3dPreviewView modelPreview() {
@@ -105,6 +189,19 @@ final class StudioWorkflowResultView extends LinearLayout {
             addView(modelPreview, 0, new LayoutParams(LayoutParams.MATCH_PARENT, ui.dp(250)));
         }
         return modelPreview;
+    }
+
+    private ImageGenerationPlaceholder imageGenerationPlaceholder() {
+        if (imageGenerationPlaceholder == null) {
+            imageGenerationPlaceholder = new ImageGenerationPlaceholder(activity);
+            addView(imageGenerationPlaceholder, 0, new LayoutParams(LayoutParams.MATCH_PARENT, ui.dp(220)));
+        }
+        return imageGenerationPlaceholder;
+    }
+
+    private void hideImageGenerationPlaceholder() {
+        if (imageGenerationPlaceholder != null) imageGenerationPlaceholder.setVisibility(View.GONE);
+        title.setVisibility(View.VISIBLE);
     }
 
     private void bindPreview(

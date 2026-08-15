@@ -28,16 +28,18 @@ final class MediaPreviewController {
     private final MobileUiKit ui;
     private final MediaPreviewCache cache;
     private final Consumer<Exception> errors;
+    private final Consumer<MediaItem> generateModelFromImage;
 
     MediaPreviewController(
         Activity activity, ExecutorService executor, Handler main,
-        MediaPreviewCache cache, Consumer<Exception> errors
+        MediaPreviewCache cache, Consumer<Exception> errors, Consumer<MediaItem> generateModelFromImage
     ) {
         this.activity = activity;
         this.executor = executor;
         this.main = main;
         this.cache = cache;
         this.errors = errors;
+        this.generateModelFromImage = generateModelFromImage;
         ui = new MobileUiKit(activity);
     }
 
@@ -123,7 +125,8 @@ final class MediaPreviewController {
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setImageBitmap(decodePreviewBitmap(file));
         new AlertDialog.Builder(activity).setTitle(title(item)).setView(image)
-            .setPositiveButton("Close", null).show();
+            .setPositiveButton("Generate 3D Model", (dialog, which) -> generateModelFromImage.accept(item))
+            .setNegativeButton("Close", null).show();
     }
 
     private void showVideo(MediaItem item, File file) {

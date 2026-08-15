@@ -27,7 +27,6 @@ final class ImageStudioController {
 
     private LinearLayout build() {
         LinearLayout panel = support.panel("Image Studio", "Generate an image on the dashboard and make it available in the Gallery.");
-        support.addStudioContext(panel);
         EditText prompt = support.input("Describe the image to generate");
         prompt.setMinLines(4);
         prompt.setGravity(Gravity.TOP);
@@ -36,7 +35,7 @@ final class ImageStudioController {
         panel.addView(support.ui.field("Avoid", "Optional details the generated image should exclude.", negativePrompt), support.layout());
         ImageStudioSourceController sources = new ImageStudioSourceController(support);
         sources.addTo(panel, prompt, negativePrompt);
-        Spinner size = support.choice(List.of("1024 × 1024", "1344 × 768", "768 × 1344", "512 × 512"), 0);
+        Spinner size = support.choice(List.of("512 × 512", "768 × 1344", "1344 × 768", "1024 × 1024"), 0);
         panel.addView(support.ui.overline("Canvas size"), support.layout());
         panel.addView(size, support.layout());
         EditText seed = support.input("Seed (empty = random)");
@@ -65,18 +64,19 @@ final class ImageStudioController {
             }), support.layout());
         StudioWorkflowResultView result = support.workflowResult("Generated images will appear here.");
         support.bindResult("image", result);
-        panel.addView(result, support.layout());
+        support.bindImageToModelAction(result);
         Button generate = support.primaryButton("Generate image");
         generate.setOnClickListener(ignored ->
-            queue(prompt, negativePrompt, size, seed, steps, cfg, autoPrompt, sources.primarySource(), result));
+            queue(prompt, negativePrompt, size, seed, steps, cfg, autoPrompt, result));
         panel.addView(generate, support.layout());
+        panel.addView(result, support.layout());
         panel.addView(support.jobsButton(), support.layout());
         return panel;
     }
 
     private void queue(
         EditText prompt, EditText negativePrompt, Spinner size, EditText seed,
-        EditText steps, EditText cfg, CheckBox autoPrompt, MediaItem source, StudioWorkflowResultView result
+        EditText steps, EditText cfg, CheckBox autoPrompt, StudioWorkflowResultView result
     ) {
         String value = prompt.getText().toString().trim();
         if (value.isEmpty()) {
@@ -95,8 +95,8 @@ final class ImageStudioController {
             if (seedValue != null) job.put("seed", seedValue);
             if (stepValue != null) job.put("steps", stepValue);
             if (cfgValue != null) job.put("cfg", cfgValue);
-            support.putImageSource(job, source);
             support.queue("image", job, result, "Image");
+            view.post(() -> view.fullScroll(View.FOCUS_DOWN));
         } catch (Exception error) {
             support.status.accept(support.message(error, "Could not queue image generation."));
         }

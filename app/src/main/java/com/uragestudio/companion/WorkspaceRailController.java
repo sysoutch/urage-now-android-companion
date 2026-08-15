@@ -1,12 +1,10 @@
 package com.uragestudio.companion;
 
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -15,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** Owns phone bottom navigation and its adaptive tablet-side presentation. */
+/** Owns the persistent LazyDev left sidebar on phones and tablets. */
 final class WorkspaceRailController {
     private record Destination(String id, String label, int icon, int color) {}
 
@@ -23,7 +21,6 @@ final class WorkspaceRailController {
     private final Consumer<String> navigation;
     private final View view;
     private final LinearLayout items;
-    private final boolean tablet;
     private final Map<String, LinearLayout> itemViews = new LinkedHashMap<>();
     private final Map<String, TextView> badges = new LinkedHashMap<>();
     private final Map<String, String> labels = new LinkedHashMap<>();
@@ -31,44 +28,34 @@ final class WorkspaceRailController {
     WorkspaceRailController(android.app.Activity activity, Consumer<String> navigation) {
         this.navigation = navigation;
         ui = new MobileUiKit(activity);
-        tablet = usesTabletLayout(activity.getResources().getConfiguration());
         items = new LinearLayout(activity);
-        items.setOrientation(tablet ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        items.setGravity(tablet ? Gravity.TOP : Gravity.CENTER_VERTICAL);
-        items.setPadding(tablet ? ui.dp(8) : 0, tablet ? ui.dp(7) : 0, tablet ? ui.dp(8) : 0, tablet ? ui.dp(7) : 0);
-        items.setBackgroundColor(ui.surfaceColor());
+        items.setOrientation(LinearLayout.VERTICAL);
+        items.setGravity(Gravity.TOP);
+        items.setPadding(ui.dp(6), ui.dp(8), ui.dp(6), ui.dp(8));
+
+        TextView brand = new TextView(activity);
+        brand.setText("LazyDev");
+        brand.setTextColor(ui.accentStrongColor());
+        brand.setTextSize(13);
+        brand.setGravity(Gravity.CENTER);
+        brand.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        items.addView(brand, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(46)));
+
         for (Destination destination : destinations()) {
-            View item = buildItem(activity, destination);
-            items.addView(item, itemLayout());
+            items.addView(buildItem(activity, destination), itemLayout());
         }
-        if (tablet) {
-            ScrollView vertical = new ScrollView(activity);
-            vertical.setVerticalScrollBarEnabled(false);
-            vertical.setFillViewport(true);
-            vertical.setBackgroundColor(ui.surfaceColor());
-            vertical.addView(items);
-            view = vertical;
-        } else {
-            HorizontalScrollView horizontal = new HorizontalScrollView(activity);
-            horizontal.setHorizontalScrollBarEnabled(false);
-            horizontal.setFillViewport(false);
-            horizontal.setBackgroundColor(ui.surfaceColor());
-            horizontal.addView(items);
-            view = horizontal;
-        }
+        ScrollView vertical = new ScrollView(activity);
+        vertical.setVerticalScrollBarEnabled(false);
+        vertical.setFillViewport(true);
+        vertical.setBackgroundColor(ui.surfaceColor());
+        vertical.addView(items);
+        view = vertical;
     }
 
-    View view() {
-        return view;
-    }
+    View view() { return view; }
 
-    boolean usesTabletLayout() {
-        return tablet;
-    }
-
-    static boolean usesTabletLayout(Configuration configuration) {
-        return configuration.smallestScreenWidthDp >= 600;
-    }
+    static boolean usesLeftSidebar() { return true; }
 
     void select(String workspace) {
         if (!itemViews.containsKey(workspace)) return;
@@ -95,41 +82,41 @@ final class WorkspaceRailController {
         LinearLayout item = new LinearLayout(activity);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(ui.dp(8), ui.dp(7), ui.dp(8), ui.dp(6));
+        item.setPadding(ui.dp(5), ui.dp(5), ui.dp(5), ui.dp(4));
         item.setClickable(true);
         item.setFocusable(true);
         item.setContentDescription("Open " + destination.label());
         ImageView icon = new ImageView(activity);
         icon.setImageResource(destination.icon());
         icon.setImageTintList(ColorStateList.valueOf(destination.color()));
-        item.addView(icon, new LinearLayout.LayoutParams(ui.dp(22), ui.dp(22)));
+        item.addView(icon, new LinearLayout.LayoutParams(ui.dp(21), ui.dp(21)));
         TextView label = new TextView(activity);
         label.setText(destination.label());
         label.setTextColor(ui.textColor());
-        label.setTextSize(10);
+        label.setTextSize(9);
         label.setGravity(Gravity.CENTER);
         label.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams labelLayout = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        labelLayout.topMargin = ui.dp(3);
+        labelLayout.topMargin = ui.dp(2);
         item.addView(label, labelLayout);
         item.setOnClickListener(ignored -> select(destination.id()));
         item.setBackground(ui.navigationDestinationBackground(false));
         wrapper.addView(item, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
         TextView badge = new TextView(activity);
         badge.setTextColor(ui.backgroundColor());
-        badge.setTextSize(10);
+        badge.setTextSize(9);
         badge.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         badge.setGravity(Gravity.CENTER);
-        badge.setMinWidth(ui.dp(20));
-        badge.setMinHeight(ui.dp(20));
-        badge.setPadding(ui.dp(5), 0, ui.dp(5), 0);
+        badge.setMinWidth(ui.dp(18));
+        badge.setMinHeight(ui.dp(18));
+        badge.setPadding(ui.dp(4), 0, ui.dp(4), 0);
         badge.setBackground(ui.selectedControlBackground());
         badge.setVisibility(View.GONE);
         FrameLayout.LayoutParams badgeLayout = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, ui.dp(20), Gravity.TOP | Gravity.END);
-        badgeLayout.setMargins(0, ui.dp(1), ui.dp(1), 0);
+            FrameLayout.LayoutParams.WRAP_CONTENT, ui.dp(18), Gravity.TOP | Gravity.END);
         wrapper.addView(badge, badgeLayout);
         itemViews.put(destination.id(), item);
         labels.put(destination.id(), destination.label());
@@ -139,6 +126,7 @@ final class WorkspaceRailController {
 
     private java.util.List<Destination> destinations() {
         return java.util.List.of(
+            new Destination("home", "Home", R.drawable.ic_home, ui.accentStrongColor()),
             new Destination("gallery", "Gallery", R.drawable.ic_gallery, ui.textMutedColor()),
             new Destination("chat", "Chat", R.drawable.ic_chat, ui.accentStrongColor()),
             new Destination("image", "Image", R.drawable.ic_image, Color.parseColor("#65E19F")),
@@ -146,15 +134,15 @@ final class WorkspaceRailController {
             new Destination("audio", "Audio", R.drawable.ic_audio, Color.parseColor("#FFBD6A")),
             new Destination("music", "Music", R.drawable.ic_music, Color.parseColor("#FF80C4")),
             new Destination("video", "Video", R.drawable.ic_video, ui.accentColor()),
+            new Destination("tools", "Tools", R.drawable.ic_create, ui.accentStrongColor()),
             new Destination("connection", "Connect", R.drawable.ic_connection, ui.textMutedColor())
         );
     }
 
     private LinearLayout.LayoutParams itemLayout() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            tablet ? LinearLayout.LayoutParams.MATCH_PARENT : ui.dp(70),
-            ui.dp(60));
-        if (tablet) params.setMargins(0, ui.dp(3), 0, ui.dp(3));
+            LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(54));
+        params.setMargins(0, ui.dp(2), 0, ui.dp(2));
         return params;
     }
 

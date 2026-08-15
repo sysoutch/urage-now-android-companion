@@ -47,9 +47,20 @@ final class StudioWorkflowResultPresenter implements AutoCloseable {
     }
 
     private void refreshKind(String workflowKind, StudioWorkflowResultView target) {
-        WorkflowJobStore.Job completed = jobs.list().stream()
-            .filter(job -> workflowKind.equals(job.kind()) && "completed".equals(job.state()) && job.result() != null)
+        WorkflowJobStore.Job latest = jobs.list().stream()
+            .filter(job -> workflowKind.equals(job.kind()))
             .findFirst().orElse(null);
+        if (latest != null && isActive(latest)) {
+            if ("image".equals(workflowKind)) target.showImageGenerationPlaceholder();
+            else target.showStatus(latest.detail());
+            return;
+        }
+        if (latest != null && ("failed".equals(latest.state()) || "cancelled".equals(latest.state()))) {
+            target.showStatus(latest.detail());
+            return;
+        }
+        WorkflowJobStore.Job completed = latest != null && "completed".equals(latest.state()) && latest.result() != null
+            ? latest : null;
         if (completed == null) return;
         MediaItem item = completed.result();
         target.showResult(item, dashboardApi, executor, main);
@@ -67,6 +78,10 @@ final class StudioWorkflowResultPresenter implements AutoCloseable {
         });
         Integer previous = presentedJobIds.put(workflowKind, completed.id());
         if (previous != null && previous != completed.id()) onNewResult.run();
+    }
+
+    private boolean isActive(WorkflowJobStore.Job job) {
+        return "queued".equals(job.state()) || "running".equals(job.state()) || "downloading".equals(job.state());
     }
 
     @Override public void close() {

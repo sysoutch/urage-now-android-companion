@@ -14,7 +14,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import org.json.JSONObject;
 
 public final class SecureMatrixRelayStore {
-    public record Config(String homeserverUrl, String accessToken, String botUserId, String roomId) {}
+    public record Config(String homeserverUrl, String accessToken, String botUserId, String roomId, boolean allowUnencryptedMedia) {}
     private static final String KEY_ALIAS = "urage_companion_matrix_relay";
     private final SharedPreferences preferences;
 
@@ -30,6 +30,7 @@ public final class SecureMatrixRelayStore {
             .put("accessToken", config.accessToken())
             .put("botUserId", config.botUserId())
             .put("roomId", config.roomId())
+            .put("allowUnencryptedMedia", config.allowUnencryptedMedia())
             .toString().getBytes(StandardCharsets.UTF_8);
         preferences.edit()
             .putString("ciphertext", Base64.encodeToString(cipher.doFinal(cleartext), Base64.NO_WRAP))
@@ -47,7 +48,7 @@ public final class SecureMatrixRelayStore {
             JSONObject value = new JSONObject(new String(cipher.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)), StandardCharsets.UTF_8));
             return new Config(
                 value.optString("homeserverUrl"), value.optString("accessToken"),
-                value.optString("botUserId"), value.optString("roomId")
+                value.optString("botUserId"), value.optString("roomId"), value.optBoolean("allowUnencryptedMedia", false)
             );
         } catch (Exception error) {
             preferences.edit().clear().apply();

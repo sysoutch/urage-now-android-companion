@@ -1,8 +1,10 @@
 package com.uragestudio.companion;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import com.google.android.material.card.MaterialCardView;
@@ -20,6 +22,7 @@ final class MatrixRelaySectionController {
     private EditText accessToken;
     private EditText botUserId;
     private EditText roomId;
+    private CheckBox allowUnencryptedMedia;
 
     MatrixRelaySectionController(Activity activity, Consumer<String> status, Consumer<Exception> errors) {
         this.activity = activity;
@@ -56,7 +59,11 @@ final class MatrixRelaySectionController {
         content.addView(ui.field("Homeserver", "HTTPS is required.", homeserver), ui.spacedMatchWrap());
         content.addView(ui.field("Your access token", "Use your personal account, never the bot token.", accessToken), ui.spacedMatchWrap());
         content.addView(ui.field("Bot user", "Messages are accepted only from this Matrix user.", botUserId), ui.spacedMatchWrap());
-        content.addView(ui.field("Encrypted room", "The personal user and bot must both be joined.", roomId), ui.spacedMatchWrap());
+        content.addView(ui.field("Matrix room", "The personal user and bot must both be joined. Encrypted rooms are recommended.", roomId), ui.spacedMatchWrap());
+        allowUnencryptedMedia = new CheckBox(activity);
+        allowUnencryptedMedia.setText("Allow images in an unencrypted Matrix room");
+        allowUnencryptedMedia.setTextColor(ui.textColor());
+        content.addView(allowUnencryptedMedia, ui.spacedMatchWrap());
         LinearLayout actions = new LinearLayout(activity);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         Button save = ui.button("Save relay", MobileUiKit.ActionStyle.PRIMARY);
@@ -85,8 +92,16 @@ final class MatrixRelaySectionController {
             return;
         }
         try {
-            store.save(new SecureMatrixRelayStore.Config(homeserverUrl, token, botUser, room));
-            status.accept("Matrix relay credentials encrypted with Android Keystore.");
+            if (allowUnencryptedMedia.isChecked()) {
+                new AlertDialog.Builder(activity)
+                    .setTitle("Unencrypted Matrix media")
+                    .setMessage("Images in an unencrypted room can be read by the homeserver and everyone with room access. Are you sure? Only continue if you understand and accept these risks.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Yes, I understand the risks", (dialog, which) -> saveConfig(homeserverUrl, token, botUser, room, true))
+                    .show();
+                return;
+            }
+            saveConfig(homeserverUrl, token, botUser, room, false);
         } catch (Exception error) {
             errors.accept(error);
         }
@@ -99,6 +114,18 @@ final class MatrixRelaySectionController {
         accessToken.setText(config.accessToken());
         botUserId.setText(config.botUserId());
         roomId.setText(config.roomId());
+        allowUnencryptedMedia.setChecked(config.allowUnencryptedMedia());
+    }
+
+    private void saveConfig(String homeserverUrl, String token, String botUser, String room, boolean allowPlaintextMedia) {
+        try {
+            store.save(new SecureMatrixRelayStore.Config(homeserverUrl, token, botUser, room, allowPlaintextMedia));
+            status.accept(allowPlaintextMedia
+                ? "Matrix relay saved. Unencrypted-room media is enabled by your explicit confirmation."
+                : "Matrix relay credentials encrypted with Android Keystore.");
+        } catch (Exception error) {
+            errors.accept(error);
+        }
     }
 
     private LinearLayout.LayoutParams weighted() {

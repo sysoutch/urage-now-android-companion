@@ -29,62 +29,132 @@ final class PromptPresetUi {
     }
 
     LinearLayout create(String studio, Callable<JSONObject> capture, Consumer<JSONObject> apply) {
+        LinearLayout foldout = new LinearLayout(activity);
+        foldout.setOrientation(LinearLayout.VERTICAL);
+
+        Button header = ui.button("Prompt presets  ▸", MobileUiKit.ActionStyle.SECONDARY);
+        header.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+        header.setContentDescription("Expand prompt presets");
+
         LinearLayout panel = ui.cardContent();
+        panel.setVisibility(android.view.View.GONE);
+
         panel.addView(ui.overline("Prompt presets"));
-        panel.addView(ui.body("Save complete Studio configurations, favorite the useful ones, and reuse them later."));
+        panel.addView(ui.body(
+            "Save complete Studio configurations, favorite the useful ones, and reuse them later."
+        ));
+
         Spinner picker = new Spinner(activity);
         picker.setMinimumHeight(dp(52));
         picker.setBackground(ui.controlBackground());
+
         List<PromptPresetStore.Preset> presets = new ArrayList<>();
-        StyledSpinnerAdapter<String> adapter = new StyledSpinnerAdapter<>(activity, new ArrayList<>());
+        StyledSpinnerAdapter<String> adapter =
+            new StyledSpinnerAdapter<>(activity, new ArrayList<>());
+
         picker.setAdapter(adapter);
+
         Runnable refresh = () -> {
             presets.clear();
             presets.addAll(store.list(studio));
+
             adapter.clear();
             adapter.add("Choose a preset");
+
             for (PromptPresetStore.Preset preset : presets) {
                 adapter.add((preset.favorite() ? "★ " : "") + preset.name());
             }
+
             adapter.notifyDataSetChanged();
             picker.setSelection(0);
         };
+
         refresh.run();
-        picker.setOnItemSelectedListener(new SimpleItemSelection(position -> {
-            if (position > 0 && position <= presets.size()) apply.accept(presets.get(position - 1).values());
-        }));
+
+        picker.setOnItemSelectedListener(
+            new SimpleItemSelection(position -> {
+                if (position > 0 && position <= presets.size()) {
+                    apply.accept(presets.get(position - 1).values());
+                }
+            })
+        );
+
         panel.addView(picker, ui.spacedMatchWrap());
 
         LinearLayout actions = new LinearLayout(activity);
-        Button save = ui.button("Save current", MobileUiKit.ActionStyle.PRIMARY);
-        save.setOnClickListener(view -> promptForName(studio, capture, refresh));
-        Button favorite = ui.button("Favorite", MobileUiKit.ActionStyle.SECONDARY);
+
+        Button save = ui.button("💾", MobileUiKit.ActionStyle.PRIMARY);
+        save.setContentDescription("Save current");
+        save.setTooltipText("Save current");
+        save.setOnClickListener(view ->
+            promptForName(studio, capture, refresh)
+        );
+
+        Button favorite = ui.button("♡", MobileUiKit.ActionStyle.SECONDARY);
+        favorite.setContentDescription("Favorite");
+        favorite.setTooltipText("Favorite");
         favorite.setOnClickListener(view -> {
             int position = picker.getSelectedItemPosition();
+
             if (position <= 0 || position > presets.size()) {
                 status.accept("Choose a preset to favorite.");
                 return;
             }
+
             store.toggleFavorite(studio, presets.get(position - 1).id());
             refresh.run();
             status.accept("Preset favorite updated.");
         });
-        Button delete = ui.button("Delete", MobileUiKit.ActionStyle.DANGER);
+
+        Button delete = ui.button("✕", MobileUiKit.ActionStyle.DANGER);
+        delete.setContentDescription("Delete");
+        delete.setTooltipText("Delete");
         delete.setOnClickListener(view -> {
             int position = picker.getSelectedItemPosition();
+
             if (position <= 0 || position > presets.size()) {
                 status.accept("Choose a preset to delete.");
                 return;
             }
+
             store.delete(studio, presets.get(position - 1).id());
             refresh.run();
             status.accept("Preset deleted.");
         });
+
         actions.addView(save, weighted());
         actions.addView(favorite, weighted());
         actions.addView(delete, weighted());
+
         panel.addView(actions, ui.spacedMatchWrap());
-        return panel;
+
+        header.setOnClickListener(view -> {
+            boolean expanded =
+                panel.getVisibility() == android.view.View.VISIBLE;
+
+            panel.setVisibility(
+                expanded
+                    ? android.view.View.GONE
+                    : android.view.View.VISIBLE
+            );
+
+            header.setText(
+                expanded
+                    ? "Prompt presets  ▸"
+                    : "Prompt presets  ▾"
+            );
+
+            header.setContentDescription(
+                expanded
+                    ? "Expand prompt presets"
+                    : "Collapse prompt presets"
+            );
+        });
+
+        foldout.addView(header, ui.spacedMatchWrap());
+        foldout.addView(panel, ui.spacedMatchWrap());
+
+        return foldout;
     }
 
     private void promptForName(String studio, Callable<JSONObject> capture, Runnable refresh) {

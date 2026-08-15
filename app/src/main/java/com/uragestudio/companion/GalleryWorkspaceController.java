@@ -37,6 +37,7 @@ final class GalleryWorkspaceController {
     private final Supplier<DashboardApi> dashboardApi;
     private final Consumer<String> status;
     private final Consumer<Exception> errors;
+    private final Consumer<MediaItem> generateModelFromImage;
     private final MobileUiKit ui;
     private final MediaItemAdapter mediaAdapter;
     private final MediaPreviewController previews;
@@ -48,7 +49,8 @@ final class GalleryWorkspaceController {
 
     GalleryWorkspaceController(
         Activity activity, ExecutorService executor, Handler main,
-        Supplier<DashboardApi> dashboardApi, Consumer<String> status, Consumer<Exception> errors
+        Supplier<DashboardApi> dashboardApi, Consumer<String> status, Consumer<Exception> errors,
+        Consumer<MediaItem> generateModelFromImage
     ) {
         this.activity = activity;
         this.executor = executor;
@@ -56,11 +58,12 @@ final class GalleryWorkspaceController {
         this.dashboardApi = dashboardApi;
         this.status = status;
         this.errors = errors;
+        this.generateModelFromImage = generateModelFromImage;
         ui = new MobileUiKit(activity);
         mediaAdapter = new MediaItemAdapter(activity);
         offline = new OfflineMediaStore(activity);
         previews = new MediaPreviewController(
-            activity, executor, main, new MediaPreviewCache(activity, dashboardApi), errors
+            activity, executor, main, new MediaPreviewCache(activity, dashboardApi), errors, generateModelFromImage
         );
         view = build();
     }
@@ -224,7 +227,11 @@ final class GalleryWorkspaceController {
     private void showActions(MediaItem item) {
         List<String> actions = new ArrayList<>();
         actions.add("Download");
-        if (canOpenInBambuStudio(item)) actions.add("Open in Bambu Studio");
+        if ("image".equals(item.kind())) actions.add("Generate 3D Model");
+        if (canOpenInBambuStudio(item)) {
+            actions.add("Send to BambuLab");
+            actions.add("Send to BambuLab + Print");
+        }
         if (!"matrix".equals(item.source())) {
             if ("upload".equals(item.source())) actions.add("Rename title");
             actions.add("Delete");
@@ -233,7 +240,11 @@ final class GalleryWorkspaceController {
             .setItems(actions.toArray(new String[0]), (dialog, index) -> {
                 String action = actions.get(index);
                 if ("Download".equals(action)) download(item);
-                else if ("Open in Bambu Studio".equals(action)) openInBambuStudio(item);
+                else if ("Generate 3D Model".equals(action)) generateModelFromImage.accept(item);
+                else if ("Send to BambuLab".equals(action)) openInBambuStudio(item);
+                else if ("Send to BambuLab + Print".equals(action)) {
+                    status.accept("BambuLab + Print needs a configured slicing preset and printer transport. The dashboard currently only opens Bambu Studio.");
+                }
                 else if ("Rename title".equals(action)) promptRename(item);
                 else confirmDelete(item);
             })

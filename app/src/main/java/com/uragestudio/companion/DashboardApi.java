@@ -26,6 +26,8 @@ public final class DashboardApi {
     public record UploadSession(String id, long offset, long totalSize) {}
     public record ChatMessage(String role, String content) {}
     public record WorkflowItem(String id, String kind, String fileName, String title, String downloadUrl, String thumbnailUrl) {}
+    public record ToolItem(String id, String category, String categoryLabel, String title, String description, String entryPath, String coverPath) {}
+    public record ToolResource(byte[] data, String contentType) {}
     public record ImageWorkflowOptions(
         String prompt, String negativePrompt, int width, int height,
         Long seed, Integer steps, Double cfg, boolean autoPrompt,
@@ -74,6 +76,28 @@ public final class DashboardApi {
     public DashboardTheme getTheme() throws Exception {
         JSONObject response = requestJson("GET", "/api/companion/theme", null, null, true);
         return new DashboardTheme(response.optString("theme", "fire"), response.optString("updatedAt"));
+    }
+
+    public List<ToolItem> listTools() throws Exception {
+        JSONArray items = requestJson("GET", "/api/companion/tools", null, null, true).getJSONArray("tools");
+        List<ToolItem> tools = new ArrayList<>();
+        for (int index = 0; index < items.length(); index++) {
+            JSONObject item = items.getJSONObject(index);
+            tools.add(new ToolItem(
+                item.optString("id"), item.optString("category"), item.optString("categoryLabel"),
+                item.optString("title"), item.optString("description"), item.optString("entryPath"), item.optString("coverPath")
+            ));
+        }
+        return tools;
+    }
+
+    public ToolResource readToolResource(String path) throws Exception {
+        HttpURLConnection connection = open("GET", "/api/companion/tools/file?path=" + Uri.encode(path), true);
+        int status = connection.getResponseCode();
+        if (status < 200 || status >= 300) throw new IOException(readError(connection, status));
+        try (InputStream input = connection.getInputStream()) {
+            return new ToolResource(readAll(input), connection.getContentType());
+        }
     }
 
     public MediaPage listMedia(String kind, String cursor, int limit) throws Exception {
@@ -371,5 +395,35 @@ public final class DashboardApi {
         byte[] buffer = new byte[16 * 1024];
         int read;
         while ((read = input.read(buffer)) >= 0) output.write(buffer, 0, read);
+    }
+
+    // =========================================================
+    // Speech-to-Text (STT) Integration
+    // =========================================================
+
+    public String transcribeSpeechToText(String audioDataUrl, String fileName) throws Exception {
+        return transcribeSpeechToText(audioDataUrl, fileName, "auto");
+    }
+
+    public String transcribeSpeechToText(String audioDataUrl, String fileName, String language) throws Exception {
+        JSONObject body = new JSONObject()
+            .put("audioDataUrl", audioDataUrl);
+        if (fileName != null && !fileName.isEmpty()) {
+            body.put("fileName", fileName);
+        }
+        if (language != null && !language.isEmpty()) {
+            body.put("language", language);
+        }
+        body.put("saveSource", false);
+
+        HttpURLConnection connection = open("POST", "/api/speech-stt", true);
+        connection.setReadTimeout(15 * 60 * 1000);
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        try (java.io.OutputStream output = connection.getOutputStream()) {
+            output.write(body.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        JSONObject response = readJsonResponse(connection);
+        return response.getString("transcript");
     }
 }

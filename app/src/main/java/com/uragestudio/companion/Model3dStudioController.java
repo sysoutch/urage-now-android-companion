@@ -16,6 +16,9 @@ import org.json.JSONObject;
 final class Model3dStudioController {
     private final MediaStudioSupport support;
     private final ScrollView view;
+    private Spinner sourceMode;
+    private Spinner sourceImage;
+    private List<MediaItem> sourceImages;
 
     Model3dStudioController(MediaStudioSupport support) {
         this.support = support;
@@ -25,10 +28,23 @@ final class Model3dStudioController {
     View view() { return view; }
     void show(boolean visible) { view.setVisibility(visible ? View.VISIBLE : View.GONE); }
 
+    void selectSourceImage(MediaItem image) {
+        sourceMode.setSelection(0);
+        int index = sourceImages.indexOf(image);
+        if (index < 0) {
+            sourceImages.add(image);
+            @SuppressWarnings("unchecked")
+            StyledSpinnerAdapter<String> adapter = (StyledSpinnerAdapter<String>) sourceImage.getAdapter();
+            adapter.add(image.title().isBlank() ? image.fileName() : image.title());
+            adapter.notifyDataSetChanged();
+            index = sourceImages.size() - 1;
+        }
+        sourceImage.setSelection(index + 1);
+    }
+
     private LinearLayout build() {
         LinearLayout panel = support.panel("3D Studio", "Turn a selected image into a 3D model, or create the source image from text first.");
-        support.addStudioContext(panel);
-        Spinner sourceMode = support.choice(List.of(
+        sourceMode = support.choice(List.of(
             "Use an existing image",
             "Generate source image from text"
         ), 0);
@@ -49,8 +65,8 @@ final class Model3dStudioController {
         promptField.setVisibility(View.GONE);
         panel.addView(promptField, support.layout());
 
-        List<MediaItem> sourceImages = new ArrayList<>();
-        Spinner sourceImage = support.choice(new ArrayList<>(List.of("Select a source image")), 0);
+        sourceImages = new ArrayList<>();
+        sourceImage = support.choice(new ArrayList<>(List.of("Select a source image")), 0);
         LinearLayout sourceGroup = new LinearLayout(support.activity);
         sourceGroup.setOrientation(LinearLayout.VERTICAL);
         sourceGroup.addView(support.ui.overline("Required source image"), support.layout());

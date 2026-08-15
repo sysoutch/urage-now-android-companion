@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.os.Handler;
 import android.text.InputType;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -20,6 +21,7 @@ import org.json.JSONObject;
 
 /** Shared presentation and workflow operations used by focused media Studio controllers. */
 final class MediaStudioSupport {
+    private static final String TAG = "URageBambuLab";
     final Activity activity;
     final ExecutorService executor;
     final Handler main;
@@ -31,12 +33,13 @@ final class MediaStudioSupport {
     private final Supplier<String> route;
     private final StudioWorkflowResultPresenter results;
     private final StudioSourceImageActions sourceImages;
+    private final Consumer<MediaItem> generateModelFromImage;
 
     MediaStudioSupport(
         Activity activity, ExecutorService executor, Handler main,
         Supplier<DashboardApi> dashboardApi, Supplier<MatrixSdkRelayClient> matrixRelay,
         Supplier<String> route, Consumer<String> status, Consumer<Exception> errors,
-        Runnable refreshGallery, CameraCaptureController camera
+        Runnable refreshGallery, CameraCaptureController camera, Consumer<MediaItem> generateModelFromImage
     ) {
         this.activity = activity;
         this.executor = executor;
@@ -45,6 +48,7 @@ final class MediaStudioSupport {
         this.matrixRelay = matrixRelay;
         this.route = route;
         this.status = status;
+        this.generateModelFromImage = generateModelFromImage;
         ui = new MobileUiKit(activity);
         presets = new PromptPresetUi(activity, ui, status);
         sourceImages = new StudioSourceImageActions(
@@ -52,7 +56,7 @@ final class MediaStudioSupport {
         );
         results = new StudioWorkflowResultPresenter(
             activity, main,
-            new MediaPreviewController(activity, executor, main, new MediaPreviewCache(activity, dashboardApi), errors),
+            new MediaPreviewController(activity, executor, main, new MediaPreviewCache(activity, dashboardApi), errors, generateModelFromImage),
             dashboardApi, executor, errors, refreshGallery
         );
     }
@@ -85,10 +89,6 @@ final class MediaStudioSupport {
         view.addView(content);
         view.setVisibility(View.GONE);
         return view;
-    }
-
-    void addStudioContext(LinearLayout panel) {
-        panel.addView(ui.status("Uses the connection selected under Connect for this workflow."), layout());
     }
 
     EditText input(String hint) {
@@ -137,25 +137,46 @@ final class MediaStudioSupport {
         results.bind(kind, result);
     }
 
+    void bindImageToModelAction(StudioWorkflowResultView result) {
+        result.setAction("Generate 3D Model", generateModelFromImage);
+    }
+
     void bindBambuStudioAction(StudioWorkflowResultView result) {
-        result.setAction("Open in Bambu Studio", item -> {
-            if (usesMatrix()) {
-                status.accept("Bambu Studio opens on the paired dashboard host; connect through LAN or HTTPS to send this model.");
-                return;
-            }
+        result.setActionWithOption("Send to BambuLab", item -> {
             DashboardApi api = dashboardApi.get();
             if (api == null) {
-                status.accept("Pair a dashboard before opening models in Bambu Studio.");
+                String message = "Pair a dashboard over LAN or HTTPS before opening models in Bambu Studio.";
+                result.showActionStatus(message, true);
+                status.accept(message);
                 return;
             }
+            result.setActionPending(true);
+            result.showActionStatus("Sending " + item.fileName() + " to Bambu Studio on the dashboard host…", false);
+            Log.i(TAG, "Launching Bambu Studio for generated model " + item.id() + "/" + item.fileName());
             executor.execute(() -> {
                 try {
                     api.openModelInBambuStudio(item);
-                    main.post(() -> status.accept("Opened " + item.fileName() + " in Bambu Studio on the dashboard host."));
+                    main.post(() -> {
+                        String message = "Opened " + item.fileName() + " in Bambu Studio on the dashboard host.";
+                        result.setActionPending(false);
+                        result.showActionStatus(message, false);
+                        status.accept(message);
+                        Log.i(TAG, message);
+                    });
                 } catch (Exception error) {
-                    main.post(() -> status.accept(message(error, "Could not open the model in Bambu Studio.")));
+                    main.post(() -> {
+                        String message = message(error, "Could not open the model in Bambu Studio.");
+                        result.setActionPending(false);
+                        result.showActionStatus(message, true);
+                        status.accept(message);
+                        Log.e(TAG, message, error);
+                    });
                 }
             });
+        }, "Send to BambuLab + Print", item -> {
+            String message = "BambuLab + Print needs a configured slicing preset and printer transport. The dashboard currently only opens Bambu Studio.";
+            result.showActionStatus(message, true);
+            status.accept(message);
         });
     }
 
@@ -208,7 +229,8 @@ final class MediaStudioSupport {
         }
         if (!matrix && dashboardApi.get() == null) return;
         int jobId = WorkflowJobScheduler.enqueue(activity, kind, matrix ? "matrix" : "dashboard", options);
-        result.showStatus("Background job #" + jobId + " queued through " + (matrix ? "Matrix" : "LAN") + ".");
+        if ("image".equals(kind)) result.showImageGenerationPlaceholder();
+        else result.showStatus("Background job #" + jobId + " queued through " + (matrix ? "Matrix" : "LAN") + ".");
         status.accept(label + " generation queued.");
     }
 

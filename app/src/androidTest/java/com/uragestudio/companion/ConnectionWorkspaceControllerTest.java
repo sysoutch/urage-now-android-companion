@@ -11,11 +11,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -55,6 +53,10 @@ public final class ConnectionWorkspaceControllerTest {
 
             onView(withText("Gallery")).perform(click());
             onView(withText(startsWith("Preview recent dashboard media"))).check(matches(isDisplayed()));
+
+            onView(withText("Tools")).perform(click());
+            onView(withText("Live tools from the paired dashboard")).check(matches(isDisplayed()));
+            onView(withText("LazyDev")).check(matches(isDisplayed()));
         }
     }
 
@@ -93,14 +95,8 @@ public final class ConnectionWorkspaceControllerTest {
     }
 
     @Test
-    public void navigationAdaptsAtTheTabletWidthBoundary() {
-        Configuration phone = new Configuration();
-        phone.smallestScreenWidthDp = 599;
-        Configuration tablet = new Configuration();
-        tablet.smallestScreenWidthDp = 600;
-
-        assertFalse(WorkspaceRailController.usesTabletLayout(phone));
-        assertTrue(WorkspaceRailController.usesTabletLayout(tablet));
+    public void navigationUsesLeftSidebarOnPhonesAndTablets() {
+        assertTrue(WorkspaceRailController.usesLeftSidebar());
     }
 
     @Test

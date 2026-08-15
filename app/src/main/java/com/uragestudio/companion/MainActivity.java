@@ -25,12 +25,14 @@ public final class MainActivity extends Activity {
     private MobileUiKit ui;
     private TextView status;
     private WorkspaceRailController navigation;
+    private HomeWorkspaceController home;
     private ConnectionWorkspaceController connection;
     private GalleryWorkspaceController gallery;
     private WorkflowWorkspaceController workflows;
+    private ToolsWorkspaceController tools;
     private DashboardThemeSynchronizer themeSynchronizer;
     private WorkflowJobRailBinder jobRailBinder;
-    private String activeWorkspace = "connection";
+    private String activeWorkspace = "home";
 
     @Override
     protected void onCreate(Bundle state) {
@@ -50,7 +52,7 @@ public final class MainActivity extends Activity {
         requestNotificationPermission();
         String restoredWorkspace = state == null ? null : state.getString(STATE_WORKSPACE);
         navigation.select(restoredWorkspace == null
-            ? (connection.hasDashboardPairing() ? "gallery" : "connection")
+            ? "home"
             : restoredWorkspace);
         connection.discoverUnlessPairingIntent(getIntent());
     }
@@ -66,19 +68,25 @@ public final class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(ui.backgroundColor());
-        root.addView(buildHeader(), matchWrap());
-
         FrameLayout content = new FrameLayout(this);
         connection = new ConnectionWorkspaceController(
             this, executor, main, this::setStatus, this::selectGallery, () -> gallery.refresh()
         );
         gallery = new GalleryWorkspaceController(
-            this, executor, main, connection::dashboardApi, this::setStatus, connection::reportError
+            this, executor, main, connection::dashboardApi, this::setStatus, connection::reportError,
+            this::generateModelFromImage
         );
         workflows = new WorkflowWorkspaceController(
             this, executor, main, connection::dashboardApi, connection::matrixRelay,
-            connection::activeRoute, this::setStatus, connection::reportError, gallery::refresh
+            connection::activeRoute, this::setStatus, connection::reportError, gallery::refresh,
+            this::generateModelFromImage
         );
+        tools = new ToolsWorkspaceController(
+            this, executor, main, connection::dashboardApi, this::setStatus, connection::reportError
+        );
+        home = new HomeWorkspaceController(this, ui, workspace -> navigation.select(workspace));
+        status = home.statusView();
+        content.addView(home.view(), frameMatch());
         content.addView(connection.view(), frameMatch());
         content.addView(gallery.view(), frameMatch());
         content.addView(workflows.chatView(), frameMatch());
@@ -87,31 +95,16 @@ public final class MainActivity extends Activity {
         content.addView(workflows.musicView(), frameMatch());
         content.addView(workflows.videoView(), frameMatch());
         content.addView(workflows.model3dView(), frameMatch());
+        content.addView(tools.view(), frameMatch());
 
         navigation = new WorkspaceRailController(this, this::showWorkspace);
         jobRailBinder = new WorkflowJobRailBinder(this, main, navigation);
-        if (navigation.usesTabletLayout()) {
-            LinearLayout body = new LinearLayout(this);
-            body.setOrientation(LinearLayout.HORIZONTAL);
-            body.addView(navigation.view(), new LinearLayout.LayoutParams(ui.dp(108), LinearLayout.LayoutParams.MATCH_PARENT));
-            body.addView(content, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
-            root.addView(body, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-        } else {
-            root.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-            root.addView(navigation.view(), matchWrap());
-        }
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.HORIZONTAL);
+        body.addView(navigation.view(), new LinearLayout.LayoutParams(ui.dp(92), LinearLayout.LayoutParams.MATCH_PARENT));
+        body.addView(content, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        root.addView(body, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         return root;
-    }
-
-    private View buildHeader() {
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(ui.dp(18), ui.dp(14), ui.dp(18), ui.dp(10));
-        header.addView(ui.appTitle("URage Companion"));
-        header.addView(ui.body("Create, transfer, and continue away from your desk."));
-        status = ui.status("Not connected");
-        header.addView(status, ui.spacedMatchWrap());
-        return header;
     }
 
     private void showWorkspace(String workspace) {
@@ -122,8 +115,10 @@ public final class MainActivity extends Activity {
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
                 .hideSoftInputFromWindow(focused.getWindowToken(), 0);
         }
+        home.show("home".equals(workspace));
         gallery.show("gallery".equals(workspace));
         connection.show("connection".equals(workspace));
+        tools.show("tools".equals(workspace));
         workflows.show(workspace);
     }
 
@@ -132,6 +127,12 @@ public final class MainActivity extends Activity {
             navigation.select("gallery");
             themeSynchronizer.refresh();
         });
+    }
+
+    private void generateModelFromImage(MediaItem image) {
+        workflows.selectModel3dSource(image);
+        navigation.select("model3d");
+        setStatus("Selected image for 3D generation.");
     }
 
     private void requestNotificationPermission() {
@@ -145,9 +146,17 @@ public final class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (connection.handleActivityResult(requestCode, resultCode, data)) return;
-        if (workflows.handleActivityResult(requestCode, resultCode)) return;
+        // Route audio pick result through WorkflowWorkspaceController → ChatWorkspaceController
+        boolean handled = workflows.handleActivityResult(requestCode, resultCode, data);
+        if (!handled && tools.handleActivityResult(requestCode, resultCode, data)) return;
         super.onActivityResult(requestCode, resultCode, data);
         gallery.handleActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        workflows.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     private void setStatus(String message) {
@@ -156,10 +165,6 @@ public final class MainActivity extends Activity {
 
     private FrameLayout.LayoutParams frameMatch() {
         return new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-    }
-
-    private LinearLayout.LayoutParams matchWrap() {
-        return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
     }
 
     private void applySystemTheme() {
@@ -205,6 +210,7 @@ public final class MainActivity extends Activity {
         jobRailBinder.stop();
         gallery.close();
         workflows.close();
+        tools.close();
         executor.shutdownNow();
         super.onDestroy();
     }

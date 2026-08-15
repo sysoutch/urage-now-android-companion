@@ -54,11 +54,11 @@ final class ImageStudioSourceController {
         LinearLayout interpret = new LinearLayout(support.activity);
         Button whole = support.button("Interpret Whole");
         whole.setOnClickListener(ignored ->
-            support.interpretImages(selected, "whole", prompt.getText().toString(), prompt::setText));
+            support.interpretImages(selected, "whole", prompt.getText().toString(), text -> applyInterpretedPrompt(prompt, text)));
         interpret.addView(whole, support.ui.weighted());
         Button parts = support.button("Interpret Parts");
         parts.setOnClickListener(ignored ->
-            support.interpretImages(selected, "parts", prompt.getText().toString(), prompt::setText));
+            support.interpretImages(selected, "parts", prompt.getText().toString(), text -> applyInterpretedPrompt(prompt, text)));
         interpret.addView(parts, support.ui.weighted());
         panel.addView(interpret, support.layout());
 
@@ -74,8 +74,16 @@ final class ImageStudioSourceController {
         panel.addView(improve, support.layout());
     }
 
-    MediaItem primarySource() {
-        return selected.isEmpty() ? null : selected.get(0);
+    /** Applies the correlated bot prompt event to the visible Image Studio composer. */
+    private void applyInterpretedPrompt(EditText prompt, String interpretedPrompt) {
+        String text = interpretedPrompt == null ? "" : interpretedPrompt.trim();
+        if (text.isEmpty()) {
+            support.status.accept("Image interpretation returned an empty prompt.");
+            return;
+        }
+        prompt.setText(text);
+        prompt.setSelection(text.length());
+        prompt.requestFocus();
     }
 
     private void add(MediaItem item, TextView summary) {

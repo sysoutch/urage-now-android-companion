@@ -163,7 +163,7 @@ final class LanPairingSectionController {
                     instanceAdapter.notifyDataSetChanged();
                     status.accept(found.isEmpty()
                         ? "No dashboard found. On the PC open Settings > Network, use LAN mode, Save & Apply, then check Private-network firewall access."
-                        : "Found " + found.size() + " dashboard instance(s).");
+                        : "Select a dashboard to pair.");
                 });
             } catch (Exception error) {
                 reportError(error);

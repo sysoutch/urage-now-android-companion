@@ -14,10 +14,8 @@
 *.mp4 binary
 *.glb binary
 *.fbx binary
-
 # Gradle wrapper is a required binary bootstrap dependency.
 gradle/wrapper/gradle-wrapper.jar binary
-
 # Normalize source files regardless of the developer's platform.
 *.kt text eol=lf
 *.java text eol=lf
@@ -31,3 +29,4 @@ gradle/wrapper/gradle-wrapper.jar binary
 *.css text eol=lf
 gradlew text eol=lf
 gradlew.bat text eol=crlf
+app/libs/matrix-sdk-android-tls-init.aar filter=lfs diff=lfs merge=lfs -text

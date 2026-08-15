@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
@@ -60,8 +61,10 @@ final class MobileUiKit {
     int borderColor() { return border; }
     int accentColor() { return accent; }
     int accentStrongColor() { return accentStrong; }
+    int accentContainerColor() { return accentContainer; }
     int textColor() { return text; }
     int textMutedColor() { return textMuted; }
+    int dangerColor() { return danger; }
     boolean usesLightSystemBars() { return palette.light(); }
 
     TextView appTitle(String value) {
@@ -74,6 +77,18 @@ final class MobileUiKit {
     TextView screenTitle(String value) {
         TextView view = label(value, 22, text);
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        int iconResource = workspaceIcon(value);
+        if (iconResource != 0) {
+            Drawable icon = context.getDrawable(iconResource);
+            if (icon != null) {
+                icon = icon.mutate();
+                icon.setTint(accentStrong);
+                icon.setBounds(0, 0, dp(24), dp(24));
+                view.setCompoundDrawables(icon, null, null, null);
+                view.setCompoundDrawablePadding(dp(9));
+                view.setGravity(Gravity.CENTER_VERTICAL);
+            }
+        }
         return view;
     }
 
@@ -111,7 +126,7 @@ final class MobileUiKit {
         card.setCardBackgroundColor(surface);
         card.setStrokeColor(border);
         card.setStrokeWidth(dp(1));
-        card.setRadius(dp(10));
+        card.setRadius(0);
         card.setCardElevation(0);
         card.setUseCompatPadding(false);
         return card;
@@ -160,7 +175,7 @@ final class MobileUiKit {
         button.setTextSize(14);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setMinHeight(dp(48));
-        button.setCornerRadius(dp(8));
+        button.setCornerRadius(0);
         button.setInsetTop(0);
         button.setInsetBottom(0);
         if (style == ActionStyle.PRIMARY) {
@@ -182,15 +197,31 @@ final class MobileUiKit {
             button.setStrokeColor(ColorStateList.valueOf(Color.argb(140, Color.red(accent), Color.green(accent), Color.blue(accent))));
             button.setStrokeWidth(dp(1));
         }
+        int iconResource = actionIcon(label);
+        if (iconResource != 0) {
+            button.setIconResource(iconResource);
+            button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+            button.setIconPadding(dp(7));
+            button.setIconTint(ColorStateList.valueOf(style == ActionStyle.PRIMARY ? background : text));
+        }
         return button;
     }
 
     GradientDrawable controlBackground() {
-        return rounded(surfaceHigh, border, 8);
+        return rounded(surfaceHigh, border, 0);
     }
 
     GradientDrawable selectedControlBackground() {
-        return rounded(accentContainer, accent, 8);
+        return rounded(accentContainer, accent, 0);
+    }
+
+    /** Chat is conversational content, so bubbles deliberately remain rounded. */
+    GradientDrawable chatBubbleBackground(boolean outgoing) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(outgoing ? accentContainer : surfaceHigh);
+        drawable.setCornerRadius(dp(18));
+        drawable.setStroke(dp(1), outgoing ? accent : border);
+        return drawable;
     }
 
     /** Flat, contiguous navigation destinations are deliberately separate from rounded form controls. */
@@ -230,10 +261,48 @@ final class MobileUiKit {
         return view;
     }
 
+    /** Reuses the navigation rail's icons on every workspace header. */
+    private int workspaceIcon(String title) {
+        String normalized = title.toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains("gallery")) return R.drawable.ic_gallery;
+        if (normalized.contains("home")) return R.drawable.ic_home;
+        if (normalized.contains("chat")) return R.drawable.ic_chat;
+        if (normalized.contains("image")) return R.drawable.ic_image;
+        if (normalized.contains("3d") || normalized.contains("model")) return R.drawable.ic_cube;
+        if (normalized.contains("audio")) return R.drawable.ic_audio;
+        if (normalized.contains("music")) return R.drawable.ic_music;
+        if (normalized.contains("video")) return R.drawable.ic_video;
+        if (normalized.contains("tool")) return R.drawable.ic_create;
+        if (normalized.contains("connection") || normalized.contains("connect")) return R.drawable.ic_connection;
+        return 0;
+    }
+
+    /** Uses the local workflow icon set for repeated content actions. */
+    private int actionIcon(String label) {
+        String normalized = label.toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains("upload") || normalized.contains("browse") || normalized.contains("choose")) {
+            return R.drawable.ic_gallery;
+        }
+        if (normalized.contains("generate") || normalized.contains("create") || normalized.contains("apply")
+            || normalized.contains("save")) return R.drawable.ic_create;
+        if (normalized.contains("model") || normalized.contains("3d")) return R.drawable.ic_cube;
+        if (normalized.contains("audio") || normalized.contains("play")) return R.drawable.ic_audio;
+        if (normalized.contains("music")) return R.drawable.ic_music;
+        if (normalized.contains("video")) return R.drawable.ic_video;
+        if (normalized.contains("tool")) return R.drawable.ic_create;
+        if (normalized.contains("image")) return R.drawable.ic_image;
+        if (normalized.contains("pair") || normalized.contains("scan") || normalized.contains("connect")) {
+            return R.drawable.ic_connection;
+        }
+        return 0;
+    }
+
     private GradientDrawable rounded(int fill, int stroke, int radius) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(fill);
-        drawable.setCornerRadius(dp(radius));
+        // Studio controls use crisp, rectangular edges. Keeping this centralized
+        // prevents individual workspaces from drifting back to rounded cards.
+        drawable.setCornerRadius(0);
         if (stroke != Color.TRANSPARENT) drawable.setStroke(dp(1), stroke);
         return drawable;
     }

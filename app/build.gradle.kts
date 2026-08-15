@@ -72,7 +72,13 @@ android {
 dependencies {
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.google.android.material:material:1.12.0")
-    implementation("org.matrix.rustcomponents:sdk-android:26.06.30")
+    // Built from Matrix Rust SDK source with Android's rustls platform verifier
+    // initialized before the first Matrix client is created. Both AARs are
+    // required: the SDK is native and the verifier AAR provides its Android
+    // TrustManager bridge.
+    implementation(files("libs/matrix-sdk-android-tls-init.aar"))
+    implementation(files("libs/rustls-platform-verifier-android.aar"))
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

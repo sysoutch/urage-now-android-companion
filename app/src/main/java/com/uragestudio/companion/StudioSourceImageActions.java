@@ -72,17 +72,33 @@ final class StudioSourceImageActions {
     }
 
     void interpret(List<MediaItem> images, String mode, String currentPrompt, Consumer<String> onPrompt) {
-        if (images.stream().anyMatch(image -> "local".equals(image.source()) || "matrix".equals(image.source()))) {
-            status.accept("Matrix-native vision interpretation is not available yet. Generate with the source image or switch to LAN.");
+        if (images.isEmpty()) {
+            status.accept("Add at least one source image first.");
+            return;
+        }
+        if (usesMatrix.get()) {
+            MatrixSdkRelayClient relay = matrixRelay.get();
+            if (relay == null) {
+                status.accept("Configure the Matrix Internet connection before interpreting images.");
+                return;
+            }
+            status.accept("Interpreting " + images.size() + " source image(s) through Matrixâ€¦");
+            executor.execute(() -> {
+                try {
+                    String interpreted = relay.interpretImages(images, mode, currentPrompt);
+                    main.post(() -> {
+                        onPrompt.accept(interpreted);
+                        status.accept("Image interpretation added to the prompt.");
+                    });
+                } catch (Exception error) {
+                    main.post(() -> status.accept(message(error, "Matrix image interpretation failed.")));
+                }
+            });
             return;
         }
         DashboardApi api = dashboardApi.get();
         if (api == null) {
             status.accept("Image interpretation requires a paired dashboard.");
-            return;
-        }
-        if (images.isEmpty()) {
-            status.accept("Add at least one source image first.");
             return;
         }
         status.accept("Interpreting " + images.size() + " source image(s)…");
@@ -100,13 +116,33 @@ final class StudioSourceImageActions {
     }
 
     void improvePrompt(String prompt, String negativePrompt, String instructions, Consumer<String> onPrompt) {
+        if (prompt.isBlank()) {
+            status.accept("Enter a prompt to improve first.");
+            return;
+        }
+        if (usesMatrix.get()) {
+            MatrixSdkRelayClient relay = matrixRelay.get();
+            if (relay == null) {
+                status.accept("Configure the Matrix Internet connection before improving the prompt.");
+                return;
+            }
+            status.accept("Improving the Image Studio prompt through Matrixâ€¦");
+            executor.execute(() -> {
+                try {
+                    String improved = relay.improveImagePrompt(prompt, negativePrompt, instructions);
+                    main.post(() -> {
+                        onPrompt.accept(improved);
+                        status.accept("Prompt improved.");
+                    });
+                } catch (Exception error) {
+                    main.post(() -> status.accept(message(error, "Matrix prompt improvement failed.")));
+                }
+            });
+            return;
+        }
         DashboardApi api = dashboardApi.get();
         if (api == null) {
             status.accept("Prompt improvement requires a paired dashboard.");
-            return;
-        }
-        if (prompt.isBlank()) {
-            status.accept("Enter a prompt to improve first.");
             return;
         }
         status.accept("Improving the Image Studio prompt…");

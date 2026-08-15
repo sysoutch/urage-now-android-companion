@@ -7,7 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.List;
 
-/** Renders persisted and streaming Chat messages as distinct conversational bubbles. */
+/** Renders persisted and in-flight Chat messages as distinct conversational bubbles. */
 final class ChatBubbleTranscript {
     private final Activity activity;
     private final MobileUiKit ui;
@@ -26,17 +26,21 @@ final class ChatBubbleTranscript {
     }
 
     void render(List<DashboardApi.ChatMessage> history) {
-        render(history, null, null);
+        render(history, null);
     }
 
-    void render(List<DashboardApi.ChatMessage> history, String pendingPrompt, String pendingReply) {
+    void renderPendingReply(List<DashboardApi.ChatMessage> history, String pendingReply) {
+        render(history, pendingReply);
+    }
+
+    private void render(List<DashboardApi.ChatMessage> history, String pendingReply) {
         container.removeAllViews();
         for (DashboardApi.ChatMessage message : history) {
             addBubble(message.role(), message.content(), false);
         }
-        if (pendingPrompt != null) {
-            addBubble("user", pendingPrompt, false);
-            addBubble("assistant", pendingReply == null || pendingReply.isBlank() ? "Thinking…" : pendingReply, true);
+        if (pendingReply != null) {
+            if (pendingReply.isBlank()) addTypingBubble();
+            else addBubble("assistant", pendingReply, true);
         }
         if (container.getChildCount() == 0) {
             TextView empty = ui.body("No messages yet. Start a conversation below.");
@@ -46,6 +50,25 @@ final class ChatBubbleTranscript {
         }
     }
 
+    private void addTypingBubble() {
+        LinearLayout row = new LinearLayout(activity);
+        row.setGravity(Gravity.START);
+        LinearLayout bubble = new LinearLayout(activity);
+        bubble.setOrientation(LinearLayout.VERTICAL);
+        bubble.setPadding(ui.dp(15), ui.dp(9), ui.dp(15), ui.dp(10));
+        bubble.setBackground(ui.chatBubbleBackground(false));
+        TextView author = ui.overline("LazyDev \u00b7 thinking");
+        author.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        bubble.addView(author, ui.matchWrap());
+        bubble.addView(new ChatTypingIndicator(activity), ui.matchWrap());
+        LinearLayout.LayoutParams bubbleLayout = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        bubbleLayout.setMargins(0, ui.dp(5), ui.dp(34), ui.dp(5));
+        row.addView(bubble, bubbleLayout);
+        container.addView(row, ui.matchWrap());
+    }
+
     private void addBubble(String role, String content, boolean streaming) {
         boolean assistant = "assistant".equals(role);
         LinearLayout row = new LinearLayout(activity);
@@ -53,10 +76,10 @@ final class ChatBubbleTranscript {
 
         LinearLayout bubble = new LinearLayout(activity);
         bubble.setOrientation(LinearLayout.VERTICAL);
-        bubble.setPadding(ui.dp(13), ui.dp(9), ui.dp(13), ui.dp(11));
-        bubble.setBackground(assistant ? ui.controlBackground() : ui.selectedControlBackground());
+        bubble.setPadding(ui.dp(14), ui.dp(10), ui.dp(14), ui.dp(12));
+        bubble.setBackground(ui.chatBubbleBackground(!assistant));
 
-        TextView author = ui.overline(assistant ? (streaming ? "LazyDev · streaming" : "LazyDev") : "You");
+        TextView author = ui.overline(assistant ? (streaming ? "LazyDev \u00b7 streaming" : "LazyDev") : "You");
         author.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         bubble.addView(author, ui.matchWrap());
 
