@@ -96,17 +96,17 @@ final class HomeWorkspaceController {
 
         statsRow.addView(
             statCard("24", "Projects", accent),
-            weight(1, 0, 0, 0, 6)
+            weight(1, 0, 0, 6, 0)
         );
 
         statsRow.addView(
             statCard("128", "Generations", accentStrong),
-            weight(1, 0, 0, 6, 6)
+            weight(1, 0, 0, 6, 0)
         );
 
         statsRow.addView(
             statCard("12.4 GB", "Media", accent),
-            weight(1, 0, 0, 6, 0)
+            weight(1, 0, 0, 0, 0)
         );
 
         content.addView(statsRow, wrap());
@@ -208,12 +208,12 @@ final class HomeWorkspaceController {
 
         mediaRow.addView(
             compactButton("▣", "Gallery", "gallery"),
-            weight(1, 0, 0, 0, 6)
+            weight(1, 0, 0, 6, 0)
         );
 
         mediaRow.addView(
             compactButton("⚙", "Tools", "tools"),
-            weight(1, 0, 0, 6, 0)
+            weight(1, 0, 0, 0, 0)
         );
 
         content.addView(mediaRow, wrap());

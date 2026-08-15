@@ -1,6 +1,8 @@
 package com.uragestudio.companion;
 
 import android.app.Activity;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.MediaRecorder;
@@ -118,7 +120,9 @@ final class ChatWorkspaceController {
         panel.addView(transcriptScroll, weightedHeight());
 
         recordingIndicator = new TextView(activity);
-        recordingIndicator.setTextColor(activity.getResources().getColor(android.R.color.holo_red_dark));
+        recordingIndicator.setTextColor(
+            activity.getResources().getColor(android.R.color.holo_red_dark)
+        );
         recordingIndicator.setTextSize(12f);
         recordingIndicator.setVisibility(View.GONE);
         recordingIndicator.setText("● Recording...");
@@ -127,82 +131,238 @@ final class ChatWorkspaceController {
         composerDock.setOrientation(LinearLayout.VERTICAL);
         composerDock.setPadding(0, dp(8), 0, 0);
 
+        // =========================================================
+        // Top row: message field + three action buttons
+        // =========================================================
+
+        LinearLayout composerTopRow = new LinearLayout(activity);
+        composerTopRow.setOrientation(LinearLayout.HORIZONTAL);
+        composerTopRow.setGravity(Gravity.TOP);
+        composerTopRow.setBackground(ui.controlBackground());
+
+        // ---------------------------------------------------------
+        // Message area
+        // ---------------------------------------------------------
+
+        LinearLayout messageArea = new LinearLayout(activity);
+        messageArea.setOrientation(LinearLayout.VERTICAL);
+
         promptEditText = ui.input("Message LazyDev...");
         promptEditText.setId(android.view.View.generateViewId());
         promptEditText.setMinLines(4);
         promptEditText.setGravity(Gravity.TOP);
+        promptEditText.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        promptEditText.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                updateComposerPrimaryAction();
+            }
+            @Override public void afterTextChanged(Editable value) {}
+        });
 
         audioAttachmentLabel = new TextView(activity);
         audioAttachmentLabel.setTextSize(13f);
         audioAttachmentLabel.setTextColor(
-            activity.getResources().getColor(android.R.color.holo_green_dark)
+            activity.getResources().getColor(
+                android.R.color.holo_green_dark
+            )
         );
         audioAttachmentLabel.setVisibility(View.GONE);
-        audioAttachmentLabel.setPadding(0, dp(4), 0, dp(4));
+        audioAttachmentLabel.setPadding(
+            0,
+            dp(4),
+            0,
+            dp(4)
+        );
 
-        composerDock.addView(audioAttachmentLabel, matchWrap());
-        composerDock.addView(recordingIndicator, matchWrap());
-        composerDock.addView(ui.overline("Message"), matchWrap());
+        messageArea.addView(
+            audioAttachmentLabel,
+            matchWrap()
+        );
 
-        // Message input.
-        composerDock.addView(promptEditText, matchWrap());
+        messageArea.addView(
+            recordingIndicator,
+            matchWrap()
+        );
 
-        // Three small buttons ABOVE Send, side-by-side.
-        LinearLayout smallActions = new LinearLayout(activity);
-        smallActions.setOrientation(LinearLayout.HORIZONTAL);
-        smallActions.setGravity(Gravity.END);
-        smallActions.setPadding(0, dp(6), 0, dp(6));
+        messageArea.addView(
+            ui.overline("Message"),
+            matchWrap()
+        );
 
+        messageArea.addView(
+            promptEditText,
+            new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(120)
+            )
+        );
+
+        composerTopRow.addView(
+            messageArea,
+            new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1
+            )
+        );
+
+        // ---------------------------------------------------------
+        // Three buttons SIDE BY SIDE
+        // ---------------------------------------------------------
+
+        LinearLayout actionRow = new LinearLayout(activity);
+        actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionRow.setGravity(Gravity.TOP);
+
+        // Mic
         micButton = iconButton(
             "🎙",
             "Start/stop voice recording",
             MobileUiKit.ActionStyle.SECONDARY
         );
+
         micButton.setOnClickListener(ignored -> {
             if (isRecording) {
                 stopVoiceRecording();
+            } else if (hasPendingComposerSend()) {
+                sendComposerText(micButton);
             } else {
                 startVoiceRecording();
             }
         });
-        smallActions.addView(micButton, composerSmallAction());
+        styleComposerEmbeddedAction(micButton);
 
+        actionRow.addView(
+            micButton,
+            composerTopAction()
+        );
+
+        // Upload
         Button uploadAudio = iconButton(
             "📎",
             "Upload audio file for transcription",
             MobileUiKit.ActionStyle.SECONDARY
         );
-        uploadAudio.setOnClickListener(ignored -> openAudioFilePicker());
-        smallActions.addView(uploadAudio, composerSmallAction());
 
+        uploadAudio.setOnClickListener(
+            ignored -> openAudioFilePicker()
+        );
+        styleComposerEmbeddedAction(uploadAudio);
+
+        actionRow.addView(
+            uploadAudio,
+            composerTopAction()
+        );
+
+        // Options
         Button options = iconButton(
             "⋮",
             "More chat options",
             MobileUiKit.ActionStyle.SECONDARY
         );
+
         options.setTextSize(20);
-        options.setOnClickListener(ignored -> showChatOptions(options));
-        smallActions.addView(options, composerSmallAction());
 
-        composerDock.addView(smallActions, matchWrap());
+        options.setOnClickListener(
+            ignored -> showChatOptions(options)
+        );
+        styleComposerEmbeddedAction(options);
 
-        // Send button BELOW the three small buttons.
+        actionRow.addView(
+            options,
+            composerTopAction()
+        );
+
+        composerTopRow.addView(
+            actionRow,
+            new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(52)
+            )
+        );
+
+        composerDock.addView(
+            composerTopRow,
+            new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        );
+
+        // =========================================================
+        // Send button BELOW everything
+        // =========================================================
+
         Button send = iconButton(
             "➤",
             "Send message",
             MobileUiKit.ActionStyle.PRIMARY
         );
-        send.setText("➤\nSend");
+
+        send.setText("➤  Send");
         send.setTextSize(15);
-        sendButton = send;
-        send.setOnClickListener(ignored -> sendComposerText(send));
 
-        composerDock.addView(send, composerSendAction());
+        sendButton = micButton;
 
-        panel.addView(composerDock, matchWrap());
+        send.setOnClickListener(
+            ignored -> sendComposerText(send)
+        );
+
+        LinearLayout.LayoutParams sendParams =
+            new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(52)
+            );
+
+        sendParams.setMargins(
+            0,
+            dp(8),
+            0,
+            0
+        );
+
+        send.setVisibility(View.GONE);
+        composerDock.addView(send, sendParams);
+
+        panel.addView(
+            composerDock,
+            matchWrap()
+        );
 
         renderTranscript();
+        updateComposerPrimaryAction();
         return panel;
+    }
+
+    private LinearLayout.LayoutParams composerTopAction() {
+        LinearLayout.LayoutParams params =
+            new LinearLayout.LayoutParams(
+                dp(52),
+                dp(52)
+            );
+
+        return params;
+    }
+
+    private void styleComposerEmbeddedAction(Button button) {
+        button.setBackgroundTintList(
+            android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+        );
+        button.setMinWidth(0);
+    }
+
+    private boolean hasPendingComposerSend() {
+        return pendingAudioAttachment != null
+            || (promptEditText != null && !promptEditText.getText().toString().trim().isEmpty());
+    }
+
+    private void updateComposerPrimaryAction() {
+        if (micButton == null || isRecording) return;
+        boolean sendMode = hasPendingComposerSend();
+        micButton.setText(sendMode ? "➤" : "🎙");
+        micButton.setContentDescription(sendMode ? "Send message" : "Start voice recording");
+        micButton.setTooltipText(sendMode ? "Send message" : "Record audio");
     }
 
     private void showChatOptions(View anchor) {
@@ -326,6 +486,20 @@ final class ChatWorkspaceController {
             autoReplyTts,
             matchWrap()
         );
+
+        settings.addView(
+            ui.overline("Chat model provider"),
+            matchWrap()
+        );
+
+        TextView providerInfo = new TextView(activity);
+        providerInfo.setText(
+            "Dashboard local model (shared LazyDev / URage NOW prompt). " +
+            "ChatGPT, Gemini, and Meshy will be configured on the dashboard so this app never stores provider API keys."
+        );
+        providerInfo.setTextColor(ui.textMutedColor());
+        providerInfo.setPadding(dp(20), dp(4), dp(20), dp(12));
+        settings.addView(providerInfo, matchWrap());
 
         settings.addView(
             ui.overline("Reply text to speech mode"),
@@ -673,29 +847,6 @@ final class ChatWorkspaceController {
         return params;
     }
 
-    private LinearLayout.LayoutParams composerRailAction() {
-        return new LinearLayout.LayoutParams(
-            dp(48),
-            dp(52)
-        );
-    }
-
-    /*
-     * Send remains a tall button on the far right.
-     */
-    private LinearLayout.LayoutParams composerSendAction() {
-        return new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        );
-    }
-
-    private LinearLayout.LayoutParams composerSmallAction() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(52), 1);
-        params.setMargins(0, 0, dp(6), 0);
-        return params;
-    }
-
     private Button iconButton(
         String icon,
         String description,
@@ -943,6 +1094,8 @@ final class ChatWorkspaceController {
                 View.VISIBLE
             );
 
+            updateComposerPrimaryAction();
+
             status.accept(
                 "Audio attached. Tap Send to transcribe it."
             );
@@ -977,6 +1130,8 @@ final class ChatWorkspaceController {
             micButton.setContentDescription(
                 "Record voice message (hold to record)"
             );
+
+            updateComposerPrimaryAction();
         });
     }
 
@@ -1135,6 +1290,8 @@ final class ChatWorkspaceController {
                 audioAttachmentLabel.setVisibility(
                     View.GONE
                 );
+
+                updateComposerPrimaryAction();
             }
         });
     }

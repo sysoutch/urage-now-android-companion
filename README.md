@@ -14,7 +14,8 @@ URage NOW Android Companion is the free, open companion app for URage NOW Studio
 
 - Theme-aware Home overview that follows the paired dashboard's selected theme.
 - Chat, Image, 3D, Audio, Music, and Video studios with durable background jobs.
-- Chat Studio uses a wide multiline composer with Record, Upload, and More actions in a compact right-side rail, plus a prominent Send control.
+- Chat Studio uses a wide multiline composer with Upload and More actions in a compact right-side rail. Its primary control is contextual: it records when empty and becomes Send as soon as text or an audio attachment is ready.
+- LAN Chat Studio requests use the same shared LazyDev / URage NOW soul, skills, tools, and conversation prompt context as browser Chat Studio. Cloud-provider credentials will remain dashboard-managed when external providers are added.
 - Image result cards expose **Create 3D From Preview** and **Generate Video From Image** actions, using the same durable LAN or Matrix workflow queue as their dedicated studios.
 - Encrypted Matrix relay for internet Chat and media workflows, plus authenticated LAN and Matrix voice transcription through the dashboard STT workflow.
 - Sending a recorded attachment creates a pending audio bubble immediately; the same bubble is replaced with the STT text when transcription completes.
