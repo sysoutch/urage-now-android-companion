@@ -33,8 +33,13 @@ final class ImageStudioController {
         panel.addView(support.ui.field("Prompt", "Describe the subject, composition, lighting, and style.", prompt), support.layout());
         EditText negativePrompt = support.input("Negative prompt (optional)");
         panel.addView(support.ui.field("Avoid", "Optional details the generated image should exclude.", negativePrompt), support.layout());
+        EditText interpretationDirection = support.input("Optional direction for interpretation");
+        panel.addView(support.ui.field(
+            "Direction", "Optional guidance used only by Interpret Whole and Interpret Parts; it never changes image generation.",
+            interpretationDirection
+        ), support.layout());
         ImageStudioSourceController sources = new ImageStudioSourceController(support);
-        sources.addTo(panel, prompt, negativePrompt);
+        sources.addTo(panel, prompt, negativePrompt, interpretationDirection);
         Spinner size = support.choice(List.of("512 × 512", "768 × 1344", "1344 × 768", "1024 × 1024"), 0);
         panel.addView(support.ui.overline("Canvas size"), support.layout());
         panel.addView(size, support.layout());
@@ -51,11 +56,13 @@ final class ImageStudioController {
         panel.addView(autoPrompt, support.layout());
         panel.addView(support.presets.create("image", () -> new JSONObject()
             .put("prompt", prompt.getText().toString()).put("negativePrompt", negativePrompt.getText().toString())
+            .put("interpretationDirection", interpretationDirection.getText().toString())
             .put("size", size.getSelectedItemPosition()).put("seed", seed.getText().toString())
             .put("steps", steps.getText().toString()).put("cfg", cfg.getText().toString())
             .put("autoPrompt", autoPrompt.isChecked()), values -> {
                 prompt.setText(values.optString("prompt"));
                 negativePrompt.setText(values.optString("negativePrompt"));
+                interpretationDirection.setText(values.optString("interpretationDirection"));
                 size.setSelection(Math.max(0, Math.min(values.optInt("size"), 3)));
                 seed.setText(values.optString("seed"));
                 steps.setText(values.optString("steps"));
@@ -64,7 +71,7 @@ final class ImageStudioController {
             }), support.layout());
         StudioWorkflowResultView result = support.workflowResult("Generated images will appear here.");
         support.bindResult("image", result);
-        support.bindImageToModelAction(result);
+        support.bindImageQuickActions(result);
         Button generate = support.primaryButton("Generate image");
         generate.setOnClickListener(ignored ->
             queue(prompt, negativePrompt, size, seed, steps, cfg, autoPrompt, result));

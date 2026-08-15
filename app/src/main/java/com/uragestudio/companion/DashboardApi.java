@@ -28,6 +28,7 @@ public final class DashboardApi {
     public record WorkflowItem(String id, String kind, String fileName, String title, String downloadUrl, String thumbnailUrl) {}
     public record ToolItem(String id, String category, String categoryLabel, String title, String description, String entryPath, String coverPath) {}
     public record ToolResource(byte[] data, String contentType) {}
+    public record SpeechSynthesis(String fileName, String mimeType, String audioDataUrl, String transcript) {}
     public record ImageWorkflowOptions(
         String prompt, String negativePrompt, int width, int height,
         Long seed, Integer steps, Double cfg, boolean autoPrompt,
@@ -425,5 +426,15 @@ public final class DashboardApi {
         }
         JSONObject response = readJsonResponse(connection);
         return response.getString("transcript");
+    }
+
+    public SpeechSynthesis synthesizeSpeech(String text) throws Exception {
+        JSONObject response = requestWorkflowJson("/api/companion/workflows/tts", new JSONObject()
+            .put("text", text)
+            .put("mode", "standard"));
+        return new SpeechSynthesis(
+            response.optString("fileName"), response.optString("mimeType"),
+            response.getString("audioDataUrl"), response.optString("transcript", text)
+        );
     }
 }

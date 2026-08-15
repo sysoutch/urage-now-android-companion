@@ -223,19 +223,35 @@ final class StudioWorkflowResultView extends LinearLayout {
                 } else {
                     DashboardApi api = dashboardApi.get();
                     if (api == null) return;
-                    byte[] bytes = api.downloadBytes(thumbnail);
-                    bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    bitmap = tryDecodeDashboardImage(api, thumbnail);
+                    if (bitmap == null && item.downloadUrl() != null && !item.downloadUrl().isBlank()) {
+                        bitmap = tryDecodeDashboardImage(api, item.downloadUrl());
+                    }
                 }
                 if (bitmap == null) return;
+                Bitmap resolvedBitmap = bitmap;
                 main.post(() -> {
                     if (!thumbnail.equals(boundThumbnail)) return;
                     preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                    preview.setImageBitmap(bitmap);
+                    preview.setImageBitmap(resolvedBitmap);
                 });
             } catch (Exception ignored) {
                 // The type-specific placeholder remains useful if a preview cannot be fetched.
             }
         });
+    }
+
+    private Bitmap decodeDashboardImage(DashboardApi api, String path) throws Exception {
+        byte[] bytes = api.downloadBytes(path);
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+    }
+
+    private Bitmap tryDecodeDashboardImage(DashboardApi api, String path) {
+        try {
+            return decodeDashboardImage(api, path);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private int iconFor(String kind) {

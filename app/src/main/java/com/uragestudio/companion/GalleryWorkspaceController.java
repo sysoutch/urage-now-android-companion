@@ -74,7 +74,7 @@ final class GalleryWorkspaceController {
 
     void show(boolean visible) {
         view.setVisibility(visible ? View.VISIBLE : View.GONE);
-        if (visible && mediaAdapter.getCount() == 0) refresh();
+        if (visible) refresh();
     }
 
     void refresh() {
@@ -177,7 +177,10 @@ final class GalleryWorkspaceController {
                     status.accept("Showing " + mediaAdapter.getCount() + " " + kind + " item(s).");
                 });
             } catch (Exception error) {
-                main.post(() -> loadMoreButton.setEnabled(true));
+                main.post(() -> {
+                    loadMoreButton.setEnabled(true);
+                    status.accept("Gallery refresh failed: " + (error.getMessage() == null ? "unknown error" : error.getMessage()));
+                });
                 errors.accept(error);
             }
         });

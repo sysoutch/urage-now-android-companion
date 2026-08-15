@@ -14,7 +14,13 @@ URage NOW Android Companion is the free, open companion app for URage NOW Studio
 
 - Theme-aware Home overview that follows the paired dashboard's selected theme.
 - Chat, Image, 3D, Audio, Music, and Video studios with durable background jobs.
+- Chat Studio uses a wide multiline composer with Record, Upload, and More actions in a compact right-side rail, plus a prominent Send control.
+- Image result cards expose **Create 3D From Preview** and **Generate Video From Image** actions, using the same durable LAN or Matrix workflow queue as their dedicated studios.
 - Encrypted Matrix relay for internet Chat and media workflows, plus authenticated LAN and Matrix voice transcription through the dashboard STT workflow.
+- Sending a recorded attachment creates a pending audio bubble immediately; the same bubble is replaced with the STT text when transcription completes.
+- Image interpretation has its own optional **Direction** field. The existing image-generation prompt is never sent to the vision model as direction.
+- Chat Studio can automatically read completed LazyDev replies aloud. Choose **Built-in Android** for offline device speech or **ComfyUI tts.json** for dashboard-generated audio; the latter safely falls back to built-in speech when the LAN dashboard is unavailable.
+- Selected Image Studio sources are retained when the device rotates, so source-aware interpretation and generation can continue after an orientation change.
 - Recorded chat audio starts its LAN or Matrix STT handoff automatically when recording stops by default; Chat Studio settings can keep it attached until Send is tapped. Transcripts are inserted into the composer for review by default, while automatic transcript sending remains opt-in. Empty STT results and delivery errors retain the clip, leave Send enabled for a retry, and report the actual failing handoff stage instead of masking it as a connection error.
 - Gallery, dashboard-provided tools with a compact in-app browser, QR pairing, scoped permissions, and Android Keystore-backed credentials.
 

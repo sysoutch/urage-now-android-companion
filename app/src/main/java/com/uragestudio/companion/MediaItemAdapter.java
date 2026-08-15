@@ -138,17 +138,29 @@ public final class MediaItemAdapter extends BaseAdapter {
         DashboardApi currentApi = api;
         loader.execute(() -> {
             try {
-                byte[] bytes = currentApi.downloadBytes(url);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                Bitmap bitmap = downloadBitmap(currentApi, url);
+                if (bitmap == null && item.downloadUrl() != null && !item.downloadUrl().isBlank()) {
+                    bitmap = downloadBitmap(currentApi, item.downloadUrl());
+                }
                 if (bitmap == null) return;
+                Bitmap resolvedBitmap = bitmap;
                 thumbnails.put(url, bitmap);
                 main.post(() -> {
-                    if (url.equals(view.getTag())) view.setImageBitmap(bitmap);
+                    if (url.equals(view.getTag())) view.setImageBitmap(resolvedBitmap);
                 });
             } catch (Exception ignored) {
                 // The type placeholder remains when a thumbnail cannot be loaded.
             }
         });
+    }
+
+    private Bitmap downloadBitmap(DashboardApi api, String url) {
+        try {
+            byte[] bytes = api.downloadBytes(url);
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public void close() {

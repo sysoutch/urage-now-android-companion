@@ -52,6 +52,7 @@ final class WorkflowWorkspaceController {
     }
 
     void close() {
+        chat.close();
         support.close();
     }
 

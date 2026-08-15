@@ -141,6 +141,33 @@ final class MediaStudioSupport {
         result.setAction("Generate 3D Model", generateModelFromImage);
     }
 
+    void bindImageQuickActions(StudioWorkflowResultView result) {
+        result.setActionWithOption(
+            "Create 3D From Preview", generateModelFromImage,
+            "Generate Video From Image", item -> queueVideoFromImage(item, result)
+        );
+    }
+
+    private void queueVideoFromImage(MediaItem image, StudioWorkflowResultView result) {
+        if (image == null || !"image".equals(image.kind())) {
+            status.accept("Generate an image before using Image to Video.");
+            return;
+        }
+        try {
+            JSONObject job = new JSONObject()
+                .put("prompt", image.title() == null || image.title().isBlank() ? "Animate this image." : image.title())
+                .put("negativePrompt", "")
+                .put("seconds", 5)
+                .put("fps", 24)
+                .put("width", 1024)
+                .put("height", 576);
+            putImageSource(job, image);
+            queue("video", job, result, "Image to Video");
+        } catch (Exception error) {
+            status.accept(message(error, "Could not queue Image to Video."));
+        }
+    }
+
     void bindBambuStudioAction(StudioWorkflowResultView result) {
         result.setActionWithOption("Send to BambuLab", item -> {
             DashboardApi api = dashboardApi.get();
