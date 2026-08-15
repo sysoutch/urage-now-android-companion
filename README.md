@@ -1,6 +1,13 @@
 # URage NOW Android Companion
 
-The companion discovers exposed URage NOW dashboards on the local network, pairs from a one-scan camera QR or a one-time fallback code, and transfers generated or uploaded images, videos, audio, and 3D models.
+URage NOW Android Companion is the free, open companion app for URage NOW Studio. It discovers exposed dashboards on the local network, pairs from a one-scan camera QR or a one-time fallback code, and transfers generated or uploaded images, videos, audio, and 3D models.
+
+## What it includes
+
+- Theme-aware Home overview that follows the paired dashboard's selected theme.
+- Chat, Image, 3D, Audio, Music, and Video studios with durable background jobs.
+- Encrypted Matrix relay for internet Chat and media workflows, including voice transcription through the dashboard STT workflow.
+- Gallery, dashboard-provided tools, QR pairing, scoped permissions, and Android Keystore-backed credentials.
 
 ## Dashboard setup
 
