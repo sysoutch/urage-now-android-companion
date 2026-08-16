@@ -52,7 +52,7 @@ final class ImageStudioController {
         EditText cfg = support.input("CFG (optional, 0–30)");
         cfg.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         panel.addView(support.ui.field("Prompt guidance", "Optional CFG value between 0 and 30.", cfg), support.layout());
-        CheckBox autoPrompt = support.checkBox("Let LazyDev improve the prompt", true);
+        CheckBox autoPrompt = support.checkBox("Improve prompt with LazyDev before generating", true);
         panel.addView(autoPrompt, support.layout());
         panel.addView(support.presets.create("image", () -> new JSONObject()
             .put("prompt", prompt.getText().toString()).put("negativePrompt", negativePrompt.getText().toString())
@@ -92,10 +92,34 @@ final class ImageStudioController {
         }
         int[][] sizes = {{1024, 1024}, {1344, 768}, {768, 1344}, {512, 512}};
         int[] selected = sizes[Math.max(0, Math.min(size.getSelectedItemPosition(), sizes.length - 1))];
+        String negativeValue = negativePrompt.getText().toString().trim();
+        if (autoPrompt.isChecked()) {
+            support.status.accept("Improving the Image Studio prompt before generation…");
+            support.improvePrompt(value, negativeValue, "", improvedPrompt -> {
+                String resolvedPrompt = improvedPrompt == null ? "" : improvedPrompt.trim();
+                if (resolvedPrompt.isEmpty()) {
+                    support.status.accept("Prompt improvement returned an empty prompt. Image generation was not queued.");
+                    return;
+                }
+                prompt.setText(resolvedPrompt);
+                queueResolved(resolvedPrompt, negativeValue, selected, seed, steps, cfg, result);
+            });
+            return;
+        }
+        queueResolved(value, negativeValue, selected, seed, steps, cfg, result);
+    }
+
+    private void queueResolved(
+        String prompt, String negativePrompt, int[] size, EditText seed,
+        EditText steps, EditText cfg, StudioWorkflowResultView result
+    ) {
         try {
             JSONObject job = new JSONObject()
-                .put("prompt", value).put("negativePrompt", negativePrompt.getText().toString().trim())
-                .put("width", selected[0]).put("height", selected[1]).put("autoPrompt", autoPrompt.isChecked());
+                .put("prompt", prompt).put("negativePrompt", negativePrompt)
+                .put("width", size[0]).put("height", size[1])
+                // The prompt has already been deliberately resolved above. Do
+                // not ask the generation endpoint to replace it a second time.
+                .put("autoPrompt", false);
             Long seedValue = support.optionalLong(seed);
             Integer stepValue = support.optionalInteger(steps);
             Double cfgValue = support.optionalDouble(cfg);

@@ -243,8 +243,10 @@ public final class DashboardApi {
         return requestWorkflowJson("/api/companion/workflows/image/improve-prompt", body).getString("prompt");
     }
 
-    public WorkflowItem generateAudio(String prompt, int seconds) throws Exception {
+    public WorkflowItem generateAudio(String prompt, int seconds, Integer steps, Double cfg) throws Exception {
         JSONObject body = new JSONObject().put("prompt", prompt).put("seconds", seconds);
+        if (steps != null) body.put("steps", steps);
+        if (cfg != null) body.put("cfg", cfg);
         return workflowItem(requestWorkflowJson("/api/companion/workflows/audio", body).getJSONObject("item"));
     }
 

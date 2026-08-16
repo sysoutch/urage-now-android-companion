@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
         navigation.select(restoredWorkspace == null
             ? "home"
             : restoredWorkspace);
+        handleWorkflowNotificationIntent(getIntent());
         connection.discoverUnlessPairingIntent(getIntent());
     }
 
@@ -62,7 +63,24 @@ public final class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        handleWorkflowNotificationIntent(intent);
         connection.handlePairingIntent(intent);
+    }
+
+    private void handleWorkflowNotificationIntent(Intent intent) {
+        if (intent == null || !"com.uragestudio.companion.OPEN_GENERATION".equals(intent.getAction())) return;
+        MediaItem item = new MediaItem(
+            intent.getStringExtra("generationId"), intent.getStringExtra("generationKind"),
+            intent.getStringExtra("generationFileName"), intent.getStringExtra("generationTitle"),
+            intent.getStringExtra("generationCreatedAt"), intent.getStringExtra("generationDownloadUrl"),
+            intent.getStringExtra("generationThumbnailUrl"), intent.getStringExtra("generationSource"),
+            intent.getLongExtra("generationSize", -1)
+        );
+        if (item.id().isBlank() || item.kind().isBlank()) return;
+        main.post(() -> {
+            navigation.select("gallery");
+            gallery.showGeneratedPreview(item);
+        });
     }
 
     private View buildUi() {

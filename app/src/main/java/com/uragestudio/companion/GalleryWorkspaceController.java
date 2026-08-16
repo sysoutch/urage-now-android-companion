@@ -77,6 +77,10 @@ final class GalleryWorkspaceController {
         if (visible) refresh();
     }
 
+    void showGeneratedPreview(MediaItem item) {
+        if (item != null) previews.show(item);
+    }
+
     void refresh() {
         nextCursor = null;
         loadPage(false);

@@ -2,8 +2,15 @@ package com.uragestudio.companion;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.job.JobParameters;
 import android.app.job.JobService;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Build;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,7 +57,7 @@ public final class WorkflowJobService extends JobService {
             }
             ensureNotCancelled(store, id);
             store.complete(id, result);
-            notifyState(id, "URage completed", "Created " + item.fileName() + ".", false);
+            notifyCompleted(id, result);
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
             store.update(id, "cancelled", "Cancelled by Android.");
@@ -104,7 +111,11 @@ public final class WorkflowJobService extends JobService {
         DashboardApi api = new DashboardApi(pairing.baseUrl(), pairing.token(), pairing.certificateSha256());
         return switch (job.kind()) {
             case "image" -> api.generateImage(imageOptions(value));
-            case "audio" -> api.generateAudio(value.getString("prompt"), value.optInt("seconds", 10));
+            case "audio" -> api.generateAudio(
+                value.getString("prompt"), value.optInt("seconds", 10),
+                value.has("steps") ? value.optInt("steps") : null,
+                value.has("cfg") ? value.optDouble("cfg") : null
+            );
             case "music" -> api.generateMusic(value.optString("tags"), value.optString("lyrics"), value.optInt("seconds", 30));
             case "video" -> api.generateVideo(
                 value.getString("prompt"), value.optString("negativePrompt"),
@@ -151,6 +162,15 @@ public final class WorkflowJobService extends JobService {
     }
 
     private void notifyState(int id, String title, String detail, boolean ongoing) {
+        notifyState(id, title, detail, ongoing, null, null);
+    }
+
+    private void notifyCompleted(int id, MediaItem item) {
+        notifyState(id, "URage completed", "Created " + item.fileName() + ".", false,
+            loadNotificationPreview(item), item);
+    }
+
+    private void notifyState(int id, String title, String detail, boolean ongoing, Bitmap preview, MediaItem item) {
         NotificationManager notifications = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
             notifications.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Workflow jobs", NotificationManager.IMPORTANCE_DEFAULT));
@@ -160,8 +180,82 @@ public final class WorkflowJobService extends JobService {
             : new android.app.Notification.Builder(this);
         builder.setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title).setContentText(detail).setOngoing(ongoing).setAutoCancel(!ongoing);
+        if (item != null) builder.setContentIntent(generationPendingIntent(id, item));
+        if (preview != null) {
+            builder.setLargeIcon(preview);
+            if (Build.VERSION.SDK_INT >= 16) {
+                builder.setStyle(new android.app.Notification.BigPictureStyle().bigPicture(preview).bigLargeIcon((Bitmap) null));
+            }
+        }
         if (ongoing) builder.setProgress(0, 0, true);
         notifications.notify(id, builder.build());
+    }
+
+    private PendingIntent generationPendingIntent(int id, MediaItem item) {
+        Intent intent = new Intent(this, MainActivity.class)
+            .setAction("com.uragestudio.companion.OPEN_GENERATION")
+            .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra("generationId", item.id())
+            .putExtra("generationKind", item.kind())
+            .putExtra("generationFileName", item.fileName())
+            .putExtra("generationTitle", item.title())
+            .putExtra("generationCreatedAt", item.createdAt())
+            .putExtra("generationDownloadUrl", item.downloadUrl())
+            .putExtra("generationThumbnailUrl", item.thumbnailUrl())
+            .putExtra("generationSource", item.source())
+            .putExtra("generationSize", item.size());
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+        return PendingIntent.getActivity(this, id, intent, flags);
+    }
+
+    private Bitmap loadNotificationPreview(MediaItem item) {
+        try {
+            String thumbnailUrl = item.thumbnailUrl();
+            if (!thumbnailUrl.isBlank() && !thumbnailUrl.startsWith("file:")) {
+                SecurePairingStore.Pairing pairing = new SecurePairingStore(this).load();
+                if (pairing != null) {
+                    DashboardApi api = new DashboardApi(pairing.baseUrl(), pairing.token(), pairing.certificateSha256());
+                    MediaItem thumbnail = new MediaItem(item.id(), item.kind(), item.fileName(), item.title(), item.createdAt(), thumbnailUrl, thumbnailUrl, item.source(), -1);
+                    try (java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+                        api.download(thumbnail, output);
+                        byte[] bytes = output.toByteArray();
+                        Bitmap decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                        if (decoded != null) return scalePreview(decoded);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Completion notifications still work when a remote preview is unavailable.
+        }
+        return createKindPreview(item.kind());
+    }
+
+    private Bitmap scalePreview(Bitmap bitmap) {
+        int width = Math.min(640, bitmap.getWidth());
+        int height = Math.max(1, Math.round(bitmap.getHeight() * (width / (float) bitmap.getWidth())));
+        return Bitmap.createScaledBitmap(bitmap, width, height, true);
+    }
+
+    private Bitmap createKindPreview(String kind) {
+        Bitmap bitmap = Bitmap.createBitmap(512, 256, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        int color = switch (kind == null ? "" : kind) {
+            case "image" -> Color.rgb(54, 190, 128);
+            case "model3d" -> Color.rgb(124, 112, 255);
+            case "audio" -> Color.rgb(247, 164, 69);
+            case "music" -> Color.rgb(232, 87, 174);
+            case "video" -> Color.rgb(90, 143, 255);
+            default -> Color.rgb(92, 106, 130);
+        };
+        canvas.drawColor(Color.rgb(16, 20, 31));
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(color);
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(64f);
+        paint.setFakeBoldText(true);
+        canvas.drawText(kind == null || kind.isBlank() ? "MEDIA" : kind.toUpperCase(), 256, 145, paint);
+        return bitmap;
     }
 
     @Override public boolean onStopJob(JobParameters parameters) {

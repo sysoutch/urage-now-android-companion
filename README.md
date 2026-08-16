@@ -19,6 +19,7 @@ URage NOW Android Companion is the free, open companion app for URage NOW Studio
 - Image result cards expose **Create 3D From Preview** and **Generate Video From Image** actions, using the same durable LAN or Matrix workflow queue as their dedicated studios.
 - Encrypted Matrix relay for internet Chat and media workflows, plus authenticated LAN and Matrix voice transcription through the dashboard STT workflow.
 - Sending a recorded attachment creates a pending audio bubble immediately; the same bubble is replaced with the STT text when transcription completes.
+- Completed background generations raise a tappable Android notification with the available media thumbnail (or a media-type preview fallback) and open that result in Gallery.
 - Image interpretation has its own optional **Direction** field. The existing image-generation prompt is never sent to the vision model as direction.
 - Chat Studio can automatically read completed LazyDev replies aloud. Choose **Built-in Android** for offline device speech or **ComfyUI tts.json** for dashboard-generated audio; the latter safely falls back to built-in speech when the LAN dashboard is unavailable.
 - Selected Image Studio sources are retained when the device rotates, so source-aware interpretation and generation can continue after an orientation change.

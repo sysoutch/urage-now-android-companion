@@ -427,7 +427,7 @@ class MatrixSdkRelayClient(
                                 }
                                 else -> if (event.isRemote) outboundDelivery.complete(Unit)
                             }
-                        } else if (event.sender == config.botUserId() && outboundDelivery.isCompleted) {
+                        } else if (event.sender == config.botUserId()) {
                             val attachment = textAttachment(event)
                             if (attachment != null) {
                                 receivedTextAttachment = attachment
@@ -437,6 +437,11 @@ class MatrixSdkRelayClient(
                             } else if (!body.startsWith("URAGE_")
                                 && body !in preexistingBotReplies
                                 && !reply.isCompleted) {
+                                // A fresh bot reply is stronger evidence that the command was
+                                // delivered than the local echo event. Some SDK timelines do
+                                // not surface that echo, which otherwise leaves Chat waiting
+                                // until the workflow timeout even though Matrix already replied.
+                                outboundDelivery.complete(Unit)
                                 val attachmentName = attachedTextFileName(body)
                                 if (attachmentName == null) {
                                     reply.complete(ChatReply.Inline(body))
