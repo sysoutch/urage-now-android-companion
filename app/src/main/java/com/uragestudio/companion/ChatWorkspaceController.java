@@ -39,6 +39,7 @@ final class ChatWorkspaceController {
     private static final String AUTO_SEND_RECORDING_ON_STOP = "chatAutoSendRecordingOnStop";
     private static final String AUTO_REPLY_TTS = "chatAutoReplyTts";
     private static final String TTS_MODE = "chatTtsMode";
+    private static final String DELETE_SENT_VOICE_RECORDINGS = "chatDeleteSentVoiceRecordings";
 
     private final Activity activity;
     private final ExecutorService executor;
@@ -455,6 +456,12 @@ final class ChatWorkspaceController {
             dp(12)
         );
 
+        CheckBox deleteSentVoiceRecordings = new CheckBox(activity);
+        deleteSentVoiceRecordings.setText("Delete sent voice recordings");
+        deleteSentVoiceRecordings.setTextColor(ui.textColor());
+        deleteSentVoiceRecordings.setChecked(deleteSentVoiceRecordingsEnabled());
+        deleteSentVoiceRecordings.setPadding(dp(20), dp(12), dp(20), dp(12));
+
         android.widget.Spinner ttsMode =
             new android.widget.Spinner(activity);
 
@@ -484,6 +491,11 @@ final class ChatWorkspaceController {
 
         settings.addView(
             autoReplyTts,
+            matchWrap()
+        );
+
+        settings.addView(
+            deleteSentVoiceRecordings,
             matchWrap()
         );
 
@@ -535,6 +547,10 @@ final class ChatWorkspaceController {
                             AUTO_REPLY_TTS,
                             autoReplyTts.isChecked()
                         )
+                        .putBoolean(
+                            DELETE_SENT_VOICE_RECORDINGS,
+                            deleteSentVoiceRecordings.isChecked()
+                        )
                         .putString(
                             TTS_MODE,
                             ttsMode.getSelectedItemPosition() == 1
@@ -575,6 +591,10 @@ final class ChatWorkspaceController {
             AUTO_REPLY_TTS,
             false
         );
+    }
+
+    private boolean deleteSentVoiceRecordingsEnabled() {
+        return preferences.getBoolean(DELETE_SENT_VOICE_RECORDINGS, true);
     }
 
     private String textToSpeechMode() {
@@ -1263,11 +1283,7 @@ final class ChatWorkspaceController {
                 );
             });
         } finally {
-            if (
-                delivered
-                    && audioFile.exists()
-                    && !audioFile.delete()
-            ) {
+            if (delivered && deleteSentVoiceRecordingsEnabled() && audioFile.exists() && !audioFile.delete()) {
                 audioFile.deleteOnExit();
             }
         }

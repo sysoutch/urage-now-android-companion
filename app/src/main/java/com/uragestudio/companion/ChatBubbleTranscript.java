@@ -3,6 +3,8 @@ package com.uragestudio.companion;
 import android.app.Activity;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.View;
+import android.view.animation.OvershootInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.List;
@@ -12,6 +14,7 @@ final class ChatBubbleTranscript {
     private final Activity activity;
     private final MobileUiKit ui;
     private final LinearLayout container;
+    private int renderedMessageCount = -1;
 
     ChatBubbleTranscript(Activity activity) {
         this.activity = activity;
@@ -35,12 +38,15 @@ final class ChatBubbleTranscript {
 
     private void render(List<DashboardApi.ChatMessage> history, String pendingReply) {
         container.removeAllViews();
-        for (DashboardApi.ChatMessage message : history) {
-            addBubble(message.role(), message.content(), false);
+        int existingMessageCount = renderedMessageCount;
+        for (int index = 0; index < history.size(); index++) {
+            DashboardApi.ChatMessage message = history.get(index);
+            addBubble(message.role(), message.content(), false, existingMessageCount >= 0 && index >= existingMessageCount);
         }
+        renderedMessageCount = history.size();
         if (pendingReply != null) {
             if (pendingReply.isBlank()) addTypingBubble();
-            else addBubble("assistant", pendingReply, true);
+            else addBubble("assistant", pendingReply, true, false);
         }
         if (container.getChildCount() == 0) {
             TextView empty = ui.body("No messages yet. Start a conversation below.");
@@ -69,7 +75,7 @@ final class ChatBubbleTranscript {
         container.addView(row, ui.matchWrap());
     }
 
-    private void addBubble(String role, String content, boolean streaming) {
+    private void addBubble(String role, String content, boolean streaming, boolean animateIn) {
         boolean assistant = "assistant".equals(role);
         LinearLayout row = new LinearLayout(activity);
         row.setGravity(assistant ? Gravity.START : Gravity.END);
@@ -98,5 +104,21 @@ final class ChatBubbleTranscript {
         bubbleLayout.setMargins(assistant ? 0 : ui.dp(34), ui.dp(5), assistant ? ui.dp(34) : 0, ui.dp(5));
         row.addView(bubble, bubbleLayout);
         container.addView(row, ui.matchWrap());
+        if (animateIn) animateBubbleIn(bubble);
+    }
+
+    private void animateBubbleIn(View bubble) {
+        bubble.setAlpha(0f);
+        bubble.setScaleX(0.94f);
+        bubble.setScaleY(0.94f);
+        bubble.setTranslationY(ui.dp(10));
+        bubble.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .translationY(0f)
+            .setDuration(260)
+            .setInterpolator(new OvershootInterpolator(0.65f))
+            .start();
     }
 }
